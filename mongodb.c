@@ -24,7 +24,7 @@ static int mongodb_loglevel;
 #include "kno/bigints.h"
 #include "kno/cprims.h"
 #include "kno/knoregex.h"
-#include "kno/mongodb.h"
+#include "mongodb.h"
 
 #include <libu8/libu8.h>
 #include <libu8/u8printf.h>
