@@ -18,6 +18,8 @@ INCLUDE		::= $(shell knoconfig include)
 KNO_VERSION	::= $(shell knoconfig version)
 KNO_MAJOR	::= $(shell knoconfig major)
 KNO_MINOR	::= $(shell knoconfig minor)
+PKG_RELEASE	::= $(cat ./etc/release)
+DPKG_NAME	::= $(shell ./etc/dpkgname)
 MKSO		::= $(CC) -shared $(LDFLAGS) $(LIBS)
 MSG		::= echo
 SYSINSTALL      ::= /usr/bin/install -c
@@ -63,6 +65,9 @@ clean:
 	rm -f *.o *.${libsuffix}
 deep-clean: clean
 	if -f mongo-c-driver/Makefile; then cd mongo-c-driver; make clean; fi;
+
+debian/changelog: mongodb.c mongodb.h makefile debian/rules debian/control debian/changelog.base
+	cat debian/changelog.base | etc/gitchangelog kno-mongo > $@
 
 debian.built: mongodb.c mongodb.h makefile debian/rules debian/control
 	dpkg-buildpackage -sa -us -uc -b -rfakeroot && \
