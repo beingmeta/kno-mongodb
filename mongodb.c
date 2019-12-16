@@ -1449,7 +1449,6 @@ static lispval mongodb_find(lispval arg,lispval query,lispval opts_arg)
 }
 #endif
 
-#if HAVE_MONGOC_COUNT_DOCUMENTS
 DEFPRIM("collection/count",mongodb_count,KNO_MAX_ARGS(3)|KNO_MIN_ARGS(2),
 	"`(COLLECTION/COUNT *arg0* *arg1* [*arg2*])` **undocumented**");
 static lispval mongodb_count(lispval arg,lispval query,lispval opts_arg)
@@ -1502,71 +1501,7 @@ static lispval mongodb_count(lispval arg,lispval query,lispval opts_arg)
     U8_CLEAR_ERRNO();
     return KNO_ERROR_VALUE;}
 }
-#else
-DEFPRIM("collection/count",mongodb_count,KNO_MAX_ARGS(3)|KNO_MIN_ARGS(2),
-	"`(COLLECTION/COUNT *arg0* *arg1* [*arg2*])` **undocumented**");
-static lispval mongodb_count(lispval arg,lispval query,lispval opts_arg)
-{
-  struct KNO_MONGODB_COLLECTION *domain = (struct KNO_MONGODB_COLLECTION *)arg;
-  struct KNO_MONGODB_DATABASE *db = DOMAIN2DB(domain);
-  int flags = getflags(opts_arg,domain->domain_flags);
-  lispval opts = combine_opts(opts_arg,domain->domain_opts);
-  mongoc_client_t *client = NULL;
-  mongoc_collection_t *collection = open_collection(domain,&client,flags);
-  if (collection) {
-    lispval result = KNO_VOID;
-    long n_documents = -1;
-    bson_error_t err = { 0 };
-    bson_t *q = kno_lisp2bson(query,flags,opts);
-    if (q == NULL) {
-      collection_done(collection,client,domain);
-      kno_decref(opts);
-      return KNO_ERROR;}
-    lispval skip_arg = kno_getopt(opts,skipsym,KNO_FIXZERO);
-    lispval limit_arg = kno_getopt(opts,limitsym,KNO_FIXZERO);
-    if ((KNO_UINTP(skip_arg))&&(KNO_UINTP(limit_arg))) {
-      bson_t *fields = get_projection(opts,flags);
-      mongoc_read_prefs_t *rp = get_read_prefs(opts);
-      if ((logops)||(flags&KNO_MONGODB_LOGOPS)) {
-	unsigned char *qstring = bson_as_json(q,NULL);
-	u8_logf(LOG_NOTICE,"mongodb_count",
-		"Matches in %q to \n%Q\n%s",arg,query,qstring);
-	bson_free(qstring);}
-      n_documents = mongoc_collection_count
-	(collection,MONGOC_QUERY_NONE,
-	 q,
-	 KNO_FIX2INT(skip_arg),
-	 KNO_FIX2INT(limit_arg),
-	 rp,
-	 &err);
-      if (n_documents >= 0)
-	result = KNO_INT(n_documents);
-      else {
-	u8_byte buf[1000];
-	if (errno) u8_graberrno("mongodb_count",NULL);
-	kno_seterr(kno_MongoDB_Error,"mongodb_count",
-		   u8_sprintf(buf,1000,"%s (%s>%s)",
-			      err.message,db->dburi,domain->collection_name),
-		   kno_incref(query));
-	result = KNO_ERROR_VALUE;}
-      if (rp) mongoc_read_prefs_destroy(rp);
-      if (q) bson_destroy(q);
-      if (fields) bson_destroy(fields);}
-    else result = kno_err(kno_TypeError,"mongodb_count","bad skip/limit/batch",opts);
-    collection_done(collection,client,domain);
-    U8_CLEAR_ERRNO();
-    kno_decref(opts);
-    kno_decref(skip_arg);
-    kno_decref(limit_arg);
-    return result;}
-  else {
-    kno_decref(opts);
-    U8_CLEAR_ERRNO();
-    return KNO_ERROR_VALUE;}
-}
-#endif
 
-#if HAVE_MONGOC_OPTS_FUNCTIONS
 DEFPRIM("collection/get",mongodb_get,KNO_MAX_ARGS(3)|KNO_MIN_ARGS(2),
 	"`(COLLECTION/GET *arg0* *arg1* [*arg2*])` **undocumented**");
 static lispval mongodb_get(lispval arg,lispval query,lispval opts_arg)
@@ -1614,55 +1549,6 @@ static lispval mongodb_get(lispval arg,lispval query,lispval opts_arg)
     U8_CLEAR_ERRNO();
     return KNO_ERROR_VALUE;}
 }
-#else
-DEFPRIM("collection/get",mongodb_get,KNO_MAX_ARGS(3)|KNO_MIN_ARGS(2),
-	"`(COLLECTION/GET *arg0* *arg1* [*arg2*])` **undocumented**");
-static lispval mongodb_get(lispval arg,lispval query,lispval opts_arg)
-{
-  lispval result = KNO_EMPTY_CHOICE;
-  struct KNO_MONGODB_COLLECTION *domain = (struct KNO_MONGODB_COLLECTION *)arg;
-  int flags = getflags(opts_arg,domain->domain_flags);
-  lispval opts = combine_opts(opts_arg,domain->domain_opts);
-  mongoc_client_t *client = NULL;
-  mongoc_collection_t *collection = open_collection(domain,&client,flags);
-  if (collection) {
-    mongoc_cursor_t *cursor;
-    const bson_t *doc;
-    bson_t *q, *fields = get_projection(opts,flags);
-    mongoc_read_prefs_t *rp = get_read_prefs(opts);
-    if ((!(KNO_OIDP(query)))&&(KNO_TABLEP(query)))
-      q = kno_lisp2bson(query,flags,opts);
-    else {
-      struct KNO_BSON_OUTPUT out;
-      out.bson_doc = bson_new();
-      out.bson_flags = ((flags<0)?(getflags(opts,KNO_MONGODB_DEFAULTS)):(flags));
-      out.bson_opts = opts;
-      bson_append_dtype(out,"_id",3,query,-1);
-      q = out.bson_doc;}
-    if ((logops)||(flags&KNO_MONGODB_LOGOPS)) {
-      unsigned char *qstring = bson_as_json(q,NULL);
-      u8_logf(LOG_NOTICE,"mongodb_get",
-	      "Matches in %q to\n%Q\n%s",
-	      arg,query,qstring);
-      bson_free(qstring);}
-    if (q) cursor = mongoc_collection_find
-	     (collection,MONGOC_QUERY_NONE,0,1,0,q,fields,NULL);
-    if ((cursor)&&(mongoc_cursor_next(cursor,&doc))) {
-      result = kno_bson2dtype((bson_t *)doc,flags,opts);}
-    if (cursor) mongoc_cursor_destroy(cursor);
-    if (rp) mongoc_read_prefs_destroy(rp);
-    if (q) bson_destroy(q);
-    if (fields) bson_destroy(fields);
-    kno_decref(opts);
-    collection_done(collection,client,domain);
-    U8_CLEAR_ERRNO();
-    return result;}
-  else {
-    kno_decref(opts);
-    U8_CLEAR_ERRNO();
-    return KNO_ERROR_VALUE;}
-}
-#endif
 
 /* Find and Modify */
 
