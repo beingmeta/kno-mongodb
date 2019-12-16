@@ -10,5 +10,6 @@ Package: kno-mongo
 Section: libdevel
 Architecture: any
 Depends: kno-core
-Description: MongoDB module for KNO
+Conflicts: kno-mongodb
+Description: Statically linked MongoDB module for KNO
 
