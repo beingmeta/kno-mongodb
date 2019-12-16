@@ -20,6 +20,9 @@ KNO_MAJOR	::= $(shell knoconfig major)
 KNO_MINOR	::= $(shell knoconfig minor)
 MKSO		::= $(CC) -shared $(LDFLAGS) $(LIBS)
 MSG		::= echo
+SYSINSTALL      ::= /usr/bin/install -c
+GPGID           ::= FE1BC737F9F323D732AA26330620266BE5AFF294
+SUDO            ::=
 
 CLIBS=${MCB}/src/libmongoc/libmongoc-static-1.0.a ${MCB}/src/libbson/libbson-static-1.0.a
 
@@ -60,3 +63,23 @@ clean:
 	rm -f *.o *.${libsuffix}
 deep-clean: clean
 	if -f mongo-c-driver/Makefile; then cd mongo-c-driver; make clean; fi;
+
+debian.built: mongodb.c mongodb.h makefile debian/rules debian/control
+	dpkg-buildpackage -sa -us -uc -b -rfakeroot && \
+	touch $@
+
+debian.signed: debian.built
+	debsign --re-sign -k${GPGID} ../kno-mongo_*.changes && \
+	touch $@
+
+debian.updated: debian.signed
+	dupload -c ./debian/dupload.conf --nomail --to bionic ../kno-mongo_*.changes && touch $@
+
+update-apt: debian.updated
+
+debclean:
+	rm ../kno-mongo_* ../kno-mongo-*
+
+debfresh:
+	make debclean
+	make debian.built

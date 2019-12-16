@@ -1,0 +1,14 @@
+Source: kno-mongo
+Priority: optional
+Maintainer: Ken Haase <kh@beingmeta.com>
+Build-Depends: debhelper (>= 8.0.0), autotools-dev, debsigs, devscripts, libu8-dev, kno-dev
+Standards-Version: 3.9.4
+Section: libs
+Homepage: http://www.beingmeta.com/
+
+Package: kno-mongo
+Section: libdevel
+Architecture: any
+Depends: kno-core
+Description: MongoDB module for KNO
+
