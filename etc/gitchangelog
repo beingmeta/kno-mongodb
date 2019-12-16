@@ -1,5 +1,5 @@
-PACKAGE=${1-:stable}
-DISTRIBUTION=${2-:stable}
+PACKAGE=${1:-kno-mongo}
+DISTRIBUTION=${2:-stable}
 URGENCY=medium
 DATE=`date -R`
 gitid=`git describe`

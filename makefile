@@ -84,6 +84,7 @@ update-apt: debian.updated
 
 debclean:
 	rm ../kno-mongo_* ../kno-mongo-*
+	rm debian/changelog
 
 debfresh:
 	make debclean

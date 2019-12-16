@@ -1,4 +1,4 @@
-kno-mongo (1912.0) stable; urgency=medium
+kno-mongo (1910.0) stable; urgency=medium
 
   * Initial create of separate dpkg for kno-mongo
 
