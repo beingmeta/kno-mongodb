@@ -86,7 +86,7 @@ deep-clean: clean
 debian/changelog: mongodb.c mongodb.h makefile debian/rules debian/control debian/changelog.base
 	cat debian/changelog.base | etc/gitchangelog kno-mongo > $@
 
-debian.built: mongodb.c mongodb.h makefile debian/rules debian/control
+debian.built: mongodb.c mongodb.h makefile debian/rules debian/control debian/changelog
 	dpkg-buildpackage -sa -us -uc -b -rfakeroot && \
 	touch $@
 
@@ -100,8 +100,7 @@ debian.updated: debian.signed
 update-apt: debian.updated
 
 debclean:
-	rm ../kno-mongo_* ../kno-mongo-*
-	rm debian/changelog
+	rm -f ../kno-mongo_* ../kno-mongo-* debian/changelog
 
 debfresh:
 	make debclean
