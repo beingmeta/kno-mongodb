@@ -24,7 +24,7 @@ MOD_RELEASE     ::= $(shell cat etc/release)
 MOD_VERSION	::= ${KNO_MAJOR}.${KNO_MINOR}.${MOD_RELEASE}
 
 GPGID           ::= FE1BC737F9F323D732AA26330620266BE5AFF294
-SUDO            ::= $(shell which sudo)
+SUDO            ::= ${SUDO:-$(shell which sudo)}
 
 default: staticlibs
 	make mongodb.${libsuffix}
