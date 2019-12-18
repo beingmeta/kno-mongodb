@@ -11,4 +11,4 @@ export DH_OPTIONS
 	dh $@ --build-directory=/tmp/
 
 override_dh_install:
-	make DESTDIR=$$(pwd)/debian/kno-mongo install
+	make SUDO= DESTDIR=$$(pwd)/debian/kno-mongo install

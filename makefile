@@ -6,8 +6,8 @@ BSON_CFLAGS     ::= $(shell etc/pkc --cflags libbson-static-1.0)
 MONGO_CFLAGS    ::= $(shell etc/pkc --cflags libmongoc-static-1.0)
 BSON_LDFLAGS    ::= $(shell etc/pkc --libs libbson-static-1.0)
 MONGO_LDFLAGS   ::= $(shell etc/pkc --libs libmongoc-static-1.0)
-CFLAGS		::= ${KNO_CFLAGS} ${BSON_CFLAGS} ${MONGO_CFLAGS}
-LDFLAGS		::= ${KNO_LDFLAGS} ${BSON_LDFLAGS} ${MONGO_LDFLAGS}
+CFLAGS		::= ${CFLAGS} ${KNO_CFLAGS} ${BSON_CFLAGS} ${MONGO_CFLAGS}
+LDFLAGS		::= ${LDFLAGS} ${KNO_LDFLAGS} ${BSON_LDFLAGS} ${MONGO_LDFLAGS}
 CMODULES	::= $(DESTDIR)$(shell knoconfig cmodules)
 LIBS		::= $(shell knoconfig libs)
 LIB		::= $(shell knoconfig lib)
@@ -65,11 +65,11 @@ staticlibs: ${STATICLIBS}
 install:
 	@${SUDO} ${SYSINSTALL} mongodb.${libsuffix} ${CMODULES}/mongodb.so.${MOD_VERSION}
 	@echo === Installed ${CMODULES}/mongodb.so.${MOD_VERSION}
-	@${SUDO} ln -sf mongodb.so.${MOD_VERSION} ${DESTDIR}${CMODULES}/mongodb.so.${KNO_MAJOR}.${KNO_MINOR}
+	@${SUDO} ln -sf mongodb.so.${MOD_VERSION} ${CMODULES}/mongodb.so.${KNO_MAJOR}.${KNO_MINOR}
 	@echo === Linked ${CMODULES}/mongodb.so.${KNO_MAJOR}.${KNO_MINOR} to mongodb.so.${MOD_VERSION}
-	@${SUDO} ln -sf mongodb.so.${MOD_VERSION} ${DESTDIR}${CMODULES}/mongodb.so.${KNO_MAJOR}
+	@${SUDO} ln -sf mongodb.so.${MOD_VERSION} ${CMODULES}/mongodb.so.${KNO_MAJOR}
 	@echo === Linked ${CMODULES}/mongodb.so.${KNO_MAJOR} to mongodb.so.${MOD_VERSION}
-	@${SUDO} ln -sf mongodb.so.${MOD_VERSION} ${DESTDIR}${CMODULES}/mongodb.so
+	@${SUDO} ln -sf mongodb.so.${MOD_VERSION} ${CMODULES}/mongodb.so
 	@echo === Linked ${CMODULES}/mongodb.so to mongodb.so.${MOD_VERSION}
 
 clean:
@@ -81,7 +81,7 @@ deep-clean: clean
 debian/changelog: mongodb.c mongodb.h makefile debian/rules debian/control debian/changelog.base
 	cat debian/changelog.base | etc/gitchangelog kno-mongo > $@
 
-debian.built: mongodb.c mongodb.h makefile debian/rules debian/control debian/changelog
+debian.built: mongodb.c mongodb.h makefile debian/rules debian/control debian/changelog ${STATICLIBS}
 	dpkg-buildpackage -sa -us -uc -b -rfakeroot && \
 	touch $@
 
