@@ -13,6 +13,8 @@ CFLAGS		::= ${KNO_CFLAGS} ${MONGODB_CFLAGS}
 CMODULES	::= $(DESTDIR)$(shell knoconfig cmodules)
 LDFLAGS		::= ${KNO_LDFLAGS} ${MONGODB_LDFLAGS}
 LIBS		::= $(shell knoconfig libs)
+#MONGOLIBS	::= -lrt -lresolv -licuuc -licudata 
+MONGOLIBS	::= -lrt -licuuc
 LIB		::= $(shell knoconfig lib)
 INCLUDE		::= $(shell knoconfig include)
 KNO_VERSION	::= $(shell knoconfig version)
@@ -23,10 +25,14 @@ DPKG_NAME	::= $(shell ./etc/dpkgname)
 MKSO		::= $(CC) -shared $(LDFLAGS) $(LIBS)
 MSG		::= echo
 SYSINSTALL      ::= /usr/bin/install -c
-GPGID           ::= FE1BC737F9F323D732AA26330620266BE5AFF294
-SUDO            ::=
+MOD_RELEASE     ::= $(shell cat etc/release)
+MOD_VERSION	::= ${KNO_MAJOR}.${KNO_MINOR}.${MOD_RELEASE}
 
-CLIBS=${MCB}/src/libmongoc/libmongoc-static-1.0.a ${MCB}/src/libbson/libbson-static-1.0.a
+GPGID           ::= FE1BC737F9F323D732AA26330620266BE5AFF294
+SUDO            ::= $(shell which sudo)
+
+CLIBS=${MCB}/libbson/libbson-static-1.0.a ${MCB}/libmongoc/libmongoc-static-1.0.a
+#CLIBS=${MCB}/libmongoc/libmongoc-static-1.0.a
 
 default: mongodb.${libsuffix}
 
@@ -34,21 +40,31 @@ mongo-c-driver/.git:
 	git submodule init
 	git submodule update
 mongo-c-driver/cmake-build/Makefile: mongo-c-driver/.git
-	if ! -d mongo-c-driver/cmake-build;  mkdir mongo-c-driver/cmake-build; fi && \
-	cd mongo-c-driver/cmake-build && cmake -DENABLE_AUTOMATIC_INIT_AND_CLEANUP=OFF ..
+	if test ! -d mongo-c-driver/cmake-build; then mkdir mongo-c-driver/cmake-build; fi && \
+	cd mongo-c-driver/cmake-build && cmake -DENABLE_AUTOMATIC_INIT_AND_CLEANUP=OFF -DCMAKE_POSITION_INDEPENDENT_CODE=ON ..
+# set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 install:
-	install mongodb.${libsuffix} ${CMODULES}/mongodb.so.${KNO_MAJOR}.${KNO_MINOR}
-	ln -sf ${DESTDIR}${cmodules}/mongodb.so.${KNO_MAJOR}.${KNO_MINOR} ${DESTDIR}${cmodules}/mongodb.so.${KNO_MAJOR}
-	ln -sf ${DESTDIR}${cmodules}/mongodb.so.${KNO_MINOR} ${DESTDIR}${cmodules}/mongodb.so.${KNO_MAJOR}
+	@${SUDO} ${SYSINSTALL} mongodb.${libsuffix} ${CMODULES}/mongodb.so.${MOD_VERSION}
+	@echo === Installed ${CMODULES}/mongodb.so.${MOD_VERSION}
+	@${SUDO} ln -sf mongodb.so.${MOD_VERSION} ${DESTDIR}${CMODULES}/mongodb.so.${KNO_MAJOR}.${KNO_MINOR}
+	@echo === Linked ${CMODULES}/mongodb.so.${KNO_MAJOR}.${KNO_MINOR} to mongodb.so.${MOD_VERSION}
+	@${SUDO} ln -sf mongodb.so.${MOD_VERSION} ${DESTDIR}${CMODULES}/mongodb.so.${KNO_MAJOR}
+	@echo === Linked ${CMODULES}/mongodb.so.${KNO_MAJOR} to mongodb.so.${MOD_VERSION}
+	@${SUDO} ln -sf mongodb.so.${MOD_VERSION} ${DESTDIR}${CMODULES}/mongodb.so
+	@echo === Linked ${CMODULES}/mongodb.so to mongodb.so.${MOD_VERSION}
 
 mongodb.o: mongodb.c mongodb.h makefile ${CLIBS}
-	$(CC) $(CFLAGS) $(LDFLAGS)  -o $@ -c $< -lbson-static-1.0 -lmongoc-static-1.0
+	$(CC) $(CFLAGS) $(LDFLAGS) -lrt -o $@ -c $<
 	@$(MSG) CC "(MONGODB)" $@
-mongodb.so: mongodb.o mongodb.h
-	@$(MKSO) -L./ -L./lib@ -o $@ $<
-	@ln -sf $(@F) $(@D)/$(@F).4
-	@$(MSG) MKSO "(MONGODB)" $@
+mongodb.so: mongodb.o mongodb.h makefile
+	 $(MKSO) -o $@ mongodb.o \
+		 -Wl,-soname=$(@F).${MOD_VERSION} \
+		 -Wl,--allow-multiple-definition \
+	         -Wl,--whole-archive ${CLIBS} -Wl,--no-whole-archive \
+		${MONGOLIBS} ${LIBS}
+	 @$(MSG) MKSO "(MONGODB)" $@
+
 mongodb.dylib: mongodb.o mongodb.h
 	@$(MACLIBTOOL) -install_name \
 		`basename $(@F) .dylib`.${KNO_MAJOR}.dylib \
@@ -64,7 +80,8 @@ clibs: ${CLIBS}
 clean:
 	rm -f *.o *.${libsuffix}
 deep-clean: clean
-	if -f mongo-c-driver/Makefile; then cd mongo-c-driver; make clean; fi;
+	if test -f mongo-c-driver/Makefile; then cd mongo-c-driver; make clean; fi;
+	rm -rf mongo-c-driver/cmake-build
 
 debian/changelog: mongodb.c mongodb.h makefile debian/rules debian/control debian/changelog.base
 	cat debian/changelog.base | etc/gitchangelog kno-mongo > $@
