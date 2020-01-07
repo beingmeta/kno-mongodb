@@ -94,6 +94,9 @@ debian.updated: debian.signed
 
 update-apt: debian.updated
 
+debinstall: debian.signed
+	${SUDO} dpkg -i ../kno-mongo*.deb
+
 debclean:
 	rm -f ../kno-mongo_* ../kno-mongo-* debian/changelog
 
