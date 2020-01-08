@@ -86,7 +86,10 @@ debian: mongodb.c mongodb.h makefile \
 	cat debian/changelog.base | etc/gitchangelog kno-mongo > debian/changelog
 
 debian/changelog: debian mongodb.c mongodb.h makefile
-	cat debian/changelog.base | etc/gitchangelog kno-mongo > $@
+	cat debian/changelog.base | etc/gitchangelog kno-mongo > $@.tmp
+	if diff debian/changelog debian/changelog.tmp 2>&1 > /dev/null; then \
+	  mv debian/changelog.tmp debian/changelog; \
+	else rm debian/changelog.tmp; fi
 
 debian.built: mongodb.c mongodb.h makefile debian debian/changelog
 	dpkg-buildpackage -sa -us -uc -b -rfakeroot && \
