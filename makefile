@@ -115,7 +115,7 @@ debinstall: dist/debian.signed
 	${SUDO} dpkg -i ../kno-mongo*.deb
 
 debclean:
-	rm -f ../kno-mongo_* ../kno-mongo-* debian/changelog
+	rm -rf ../kno-mongo_* ../kno-mongo-* debian dist/debian.*
 
 debfresh:
 	make debclean
