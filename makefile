@@ -26,8 +26,7 @@ MOD_VERSION	::= ${KNO_MAJOR}.${KNO_MINOR}.${MOD_RELEASE}
 GPGID           ::= FE1BC737F9F323D732AA26330620266BE5AFF294
 SUDO            ::= $(shell which sudo)
 
-default: staticlibs
-	make mongodb.${libsuffix}
+default build: mongodb.${libsuffix}
 
 mongo-c-driver/.git:
 	git submodule init
@@ -61,8 +60,9 @@ mongodb.dylib: mongodb.o mongodb.h
 ${STATICLIBS}: mongo-c-driver/cmake-build/Makefile
 	make -C mongo-c-driver/cmake-build install
 staticlibs: ${STATICLIBS}
+mongodb.dylib mongodb.so: staticlibs
 
-install:
+install: build
 	@${SYSINSTALL} mongodb.${libsuffix} ${CMODULES}/mongodb.so.${MOD_VERSION}
 	@echo === Installed ${CMODULES}/mongodb.so.${MOD_VERSION}
 	@ln -sf mongodb.so.${MOD_VERSION} ${CMODULES}/mongodb.so.${KNO_MAJOR}.${KNO_MINOR}
