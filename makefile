@@ -63,13 +63,13 @@ staticlibs: ${STATICLIBS}
 mongodb.dylib mongodb.so: staticlibs
 
 install: build
-	@${SYSINSTALL} mongodb.${libsuffix} ${CMODULES}/mongodb.so.${MOD_VERSION}
+	@${SUDO} ${SYSINSTALL} mongodb.${libsuffix} ${CMODULES}/mongodb.so.${MOD_VERSION}
 	@echo === Installed ${CMODULES}/mongodb.so.${MOD_VERSION}
-	@ln -sf mongodb.so.${MOD_VERSION} ${CMODULES}/mongodb.so.${KNO_MAJOR}.${KNO_MINOR}
+	@${SUDO} ln -sf mongodb.so.${MOD_VERSION} ${CMODULES}/mongodb.so.${KNO_MAJOR}.${KNO_MINOR}
 	@echo === Linked ${CMODULES}/mongodb.so.${KNO_MAJOR}.${KNO_MINOR} to mongodb.so.${MOD_VERSION}
-	@ln -sf mongodb.so.${MOD_VERSION} ${CMODULES}/mongodb.so.${KNO_MAJOR}
+	@${SUDO} ln -sf mongodb.so.${MOD_VERSION} ${CMODULES}/mongodb.so.${KNO_MAJOR}
 	@echo === Linked ${CMODULES}/mongodb.so.${KNO_MAJOR} to mongodb.so.${MOD_VERSION}
-	@ln -sf mongodb.so.${MOD_VERSION} ${CMODULES}/mongodb.so
+	@${SUDO} ln -sf mongodb.so.${MOD_VERSION} ${CMODULES}/mongodb.so
 	@echo === Linked ${CMODULES}/mongodb.so to mongodb.so.${MOD_VERSION}
 
 suinstall doinstall:
