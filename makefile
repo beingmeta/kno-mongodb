@@ -114,7 +114,7 @@ update-apt: dist/debian.updated
 debinstall: dist/debian.signed
 	${SUDO} dpkg -i ../kno-mongo*.deb
 
-debclean:
+debclean: clean
 	rm -rf ../kno-mongo_* ../kno-mongo-* debian dist/debian.*
 
 debfresh:
