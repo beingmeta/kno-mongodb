@@ -79,22 +79,24 @@ deep-clean: clean
 	rm -rf mongo-c-driver/cmake-build installed
 
 debian: mongodb.c mongodb.h makefile \
-	dist/debian/rules dist/debian/control \
-	debian/changelog.base
+		dist/debian/rules dist/debian/control \
+		dist/debian/changelog.base
 	rm -rf debian
 	cp -r dist/debian debian
-	cat debian/changelog.base | etc/gitchangelog kno-mongo > $@
+	cat debian/changelog.base | etc/gitchangelog kno-mongo > debian/changelog
 
 debian/changelog: debian mongodb.c mongodb.h makefile
 	cat debian/changelog.base | etc/gitchangelog kno-mongo > $@
 
-debian.built: mongodb.c mongodb.h makefile debian
+debian.built: mongodb.c mongodb.h makefile debian debian/changelog
 	dpkg-buildpackage -sa -us -uc -b -rfakeroot && \
 	touch $@
 
 debian.signed: debian.built
 	debsign --re-sign -k${GPGID} ../kno-mongo_*.changes && \
 	touch $@
+
+dpkg dpkgs: debian.signed
 
 debian.updated: debian.signed
 	dupload -c ./debian/dupload.conf --nomail --to bionic ../kno-mongo_*.changes && touch $@
