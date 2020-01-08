@@ -63,14 +63,17 @@ ${STATICLIBS}: mongo-c-driver/cmake-build/Makefile
 staticlibs: ${STATICLIBS}
 
 install:
-	@${SUDO} ${SYSINSTALL} mongodb.${libsuffix} ${CMODULES}/mongodb.so.${MOD_VERSION}
+	@${SYSINSTALL} mongodb.${libsuffix} ${CMODULES}/mongodb.so.${MOD_VERSION}
 	@echo === Installed ${CMODULES}/mongodb.so.${MOD_VERSION}
-	@${SUDO} ln -sf mongodb.so.${MOD_VERSION} ${CMODULES}/mongodb.so.${KNO_MAJOR}.${KNO_MINOR}
+	@ln -sf mongodb.so.${MOD_VERSION} ${CMODULES}/mongodb.so.${KNO_MAJOR}.${KNO_MINOR}
 	@echo === Linked ${CMODULES}/mongodb.so.${KNO_MAJOR}.${KNO_MINOR} to mongodb.so.${MOD_VERSION}
-	@${SUDO} ln -sf mongodb.so.${MOD_VERSION} ${CMODULES}/mongodb.so.${KNO_MAJOR}
+	@ln -sf mongodb.so.${MOD_VERSION} ${CMODULES}/mongodb.so.${KNO_MAJOR}
 	@echo === Linked ${CMODULES}/mongodb.so.${KNO_MAJOR} to mongodb.so.${MOD_VERSION}
-	@${SUDO} ln -sf mongodb.so.${MOD_VERSION} ${CMODULES}/mongodb.so
+	@ln -sf mongodb.so.${MOD_VERSION} ${CMODULES}/mongodb.so
 	@echo === Linked ${CMODULES}/mongodb.so to mongodb.so.${MOD_VERSION}
+
+suinstall doinstall:
+	sudo make install
 
 clean:
 	rm -f *.o *.${libsuffix}
@@ -87,26 +90,28 @@ debian: mongodb.c mongodb.h makefile \
 
 debian/changelog: debian mongodb.c mongodb.h makefile
 	cat debian/changelog.base | etc/gitchangelog kno-mongo > $@.tmp
-	if diff debian/changelog debian/changelog.tmp 2>&1 > /dev/null; then \
+	@if test ! -f debian/changelog; then \
 	  mv debian/changelog.tmp debian/changelog; \
-	else rm debian/changelog.tmp; fi
+	 elif diff debian/changelog debian/changelog.tmp 2>&1 > /dev/null; then \
+	  mv debian/changelog.tmp debian/changelog; \
+	 else rm debian/changelog.tmp; fi
 
-debian.built: mongodb.c mongodb.h makefile debian debian/changelog
+dist/debian.built: mongodb.c mongodb.h makefile debian debian/changelog
 	dpkg-buildpackage -sa -us -uc -b -rfakeroot && \
 	touch $@
 
-debian.signed: debian.built
+dist/debian.signed: dist/debian.built
 	debsign --re-sign -k${GPGID} ../kno-mongo_*.changes && \
 	touch $@
 
-dpkg dpkgs: debian.signed
+deb debs dpkg dpkgs: dist/debian.signed
 
-debian.updated: debian.signed
+dist/debian.updated: dist/debian.signed
 	dupload -c ./debian/dupload.conf --nomail --to bionic ../kno-mongo_*.changes && touch $@
 
-update-apt: debian.updated
+update-apt: dist/debian.updated
 
-debinstall: debian.signed
+debinstall: dist/debian.signed
 	${SUDO} dpkg -i ../kno-mongo*.deb
 
 debclean:
@@ -114,4 +119,4 @@ debclean:
 
 debfresh:
 	make debclean
-	make debian.built
+	make dist/debian.built
