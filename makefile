@@ -78,10 +78,17 @@ deep-clean: clean
 	if test -f mongo-c-driver/Makefile; then cd mongo-c-driver; make clean; fi;
 	rm -rf mongo-c-driver/cmake-build installed
 
-debian/changelog: mongodb.c mongodb.h makefile debian/rules debian/control debian/changelog.base
+debian: mongodb.c mongodb.h makefile \
+	dist/debian/rules dist/debian/control \
+	debian/changelog.base
+	rm -rf debian
+	cp -r dist/debian debian
 	cat debian/changelog.base | etc/gitchangelog kno-mongo > $@
 
-debian.built: mongodb.c mongodb.h makefile debian/rules debian/control debian/changelog ${STATICLIBS}
+debian/changelog: debian mongodb.c mongodb.h makefile
+	cat debian/changelog.base | etc/gitchangelog kno-mongo > $@
+
+debian.built: mongodb.c mongodb.h makefile debian
 	dpkg-buildpackage -sa -us -uc -b -rfakeroot && \
 	touch $@
 
