@@ -59,6 +59,12 @@ mongodb.dylib: mongodb.o mongodb.h
 
 ${STATICLIBS}: mongo-c-driver/cmake-build/Makefile
 	make -C mongo-c-driver/cmake-build install
+	if test -d installed/lib; then \
+	  echo > /dev/null; \
+	elif test -d installed/lib64; then \
+	  ln -sf lib64 installed/lib; \
+	else echo "No install libdir"; \
+	fi
 staticlibs: ${STATICLIBS}
 mongodb.dylib mongodb.so: staticlibs
 
