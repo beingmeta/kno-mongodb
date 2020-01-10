@@ -52,6 +52,7 @@ mongodb.so: mongodb.o mongodb.h makefile
 
 mongodb.dylib: mongodb.o mongodb.h
 	@$(MACLIBTOOL) -install_name \
+  -rw-r--r--  1 haase haase  1136 Jan 10 12:18 zip
 		`basename $(@F) .dylib`.${KNO_MAJOR}.dylib \
 		$(DYLIB_FLAGS) $(BSON_LDFLAGS) $(MONGODB_LDFLAGS) \
 		-o $@ mongodb.o 
@@ -113,7 +114,7 @@ dist/debian.signed: dist/debian.built
 deb debs dpkg dpkgs: dist/debian.signed
 
 dist/debian.updated: dist/debian.signed
-	dupload -c ./debian/dupload.conf --nomail --to bionic ../kno-mongo_*.changes && touch $@
+	dupload -c ./dist/dupload.conf --nomail --to bionic ../kno-mongo_*.changes && touch $@
 
 update-apt: dist/debian.updated
 
