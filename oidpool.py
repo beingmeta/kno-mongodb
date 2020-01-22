@@ -67,7 +67,7 @@ class OIDPool():
     def alloc(n=1):
         if self.load+n > self.capacity:
             raise Exception("PoolIsFull")
-        info=collection.find_and_modify({_id: '_pool'},{"$inc": {"load": n}})
+        info=collection.find_one_and_update({_id: '_pool'},{"$inc": {"load": n}})
         base=self.base
         base_load=info.load
         if base_load+n > self.capacity:
