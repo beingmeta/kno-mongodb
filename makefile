@@ -1,20 +1,21 @@
-prefix		::= $(shell knoconfig prefix)
-libsuffix	::= $(shell knoconfig libsuffix)
-KNO_CFLAGS	::= -I. -fPIC $(shell knoconfig cflags)
-KNO_LDFLAGS	::= -fPIC $(shell knoconfig ldflags)
+KNOCONFIG       ::= knoconfig
+prefix		::= $(shell ${KNOCONFIG} prefix)
+libsuffix	::= $(shell ${KNOCONFIG} libsuffix)
+KNO_CFLAGS	::= -I. -fPIC $(shell ${KNOCONFIG} cflags)
+KNO_LDFLAGS	::= -fPIC $(shell ${KNOCONFIG} ldflags)
 BSON_CFLAGS     ::= $(shell etc/pkc --cflags libbson-static-1.0)
 MONGO_CFLAGS    ::= $(shell etc/pkc --cflags libmongoc-static-1.0)
 BSON_LDFLAGS    ::= $(shell etc/pkc --libs libbson-static-1.0)
 MONGO_LDFLAGS   ::= $(shell etc/pkc --libs libmongoc-static-1.0)
 CFLAGS		::= ${CFLAGS} ${KNO_CFLAGS} ${BSON_CFLAGS} ${MONGO_CFLAGS}
 LDFLAGS		::= ${LDFLAGS} ${KNO_LDFLAGS} ${BSON_LDFLAGS} ${MONGO_LDFLAGS}
-CMODULES	::= $(DESTDIR)$(shell knoconfig cmodules)
-LIBS		::= $(shell knoconfig libs)
-LIB		::= $(shell knoconfig lib)
-INCLUDE		::= $(shell knoconfig include)
-KNO_VERSION	::= $(shell knoconfig version)
-KNO_MAJOR	::= $(shell knoconfig major)
-KNO_MINOR	::= $(shell knoconfig minor)
+CMODULES	::= $(DESTDIR)$(shell ${KNOCONFIG} cmodules)
+LIBS		::= $(shell ${KNOCONFIG} libs)
+LIB		::= $(shell ${KNOCONFIG} lib)
+INCLUDE		::= $(shell ${KNOCONFIG} include)
+KNO_VERSION	::= $(shell ${KNOCONFIG} version)
+KNO_MAJOR	::= $(shell ${KNOCONFIG} major)
+KNO_MINOR	::= $(shell ${KNOCONFIG} minor)
 PKG_RELEASE	::= $(cat ./etc/release)
 DPKG_NAME	::= $(shell ./etc/dpkgname)
 MKSO		::= $(CC) -shared $(LDFLAGS) $(LIBS)
@@ -44,18 +45,19 @@ mongodb.o: mongodb.c mongodb.h makefile ${STATICLIBS}
 	@$(CC) $(CFLAGS) -o $@ -c $<
 	@$(MSG) CC "(MONGODB)" $@
 mongodb.so: mongodb.o mongodb.h makefile
-	 $(MKSO) -o $@ mongodb.o -Wl,-soname=$(@F).${MOD_VERSION} \
+	@$(MKSO) -o $@ mongodb.o -Wl,-soname=$(@F).${MOD_VERSION} \
 	          -Wl,--allow-multiple-definition \
 	          -Wl,--whole-archive ${STATICLIBS} -Wl,--no-whole-archive \
 		 $(LDFLAGS)
+	@if test ! -z "${COPY_CMODS}"; then cp $@ ${COPY_CMODS}; fi;
 	 @$(MSG) MKSO "(MONGODB)" $@
 
 mongodb.dylib: mongodb.o mongodb.h
 	@$(MACLIBTOOL) -install_name \
-  -rw-r--r--  1 haase haase  1136 Jan 10 12:18 zip
 		`basename $(@F) .dylib`.${KNO_MAJOR}.dylib \
 		$(DYLIB_FLAGS) $(BSON_LDFLAGS) $(MONGODB_LDFLAGS) \
 		-o $@ mongodb.o 
+	@if test ! -z "${COPY_CMODS}"; then cp $@ ${COPY_CMODS}; fi;
 	@$(MSG) MACLIBTOOL "(MONGODB)" $@
 
 ${STATICLIBS}: mongo-c-driver/cmake-build/Makefile
