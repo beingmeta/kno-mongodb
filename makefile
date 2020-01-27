@@ -3,12 +3,6 @@ prefix		::= $(shell ${KNOCONFIG} prefix)
 libsuffix	::= $(shell ${KNOCONFIG} libsuffix)
 KNO_CFLAGS	::= -I. -fPIC $(shell ${KNOCONFIG} cflags)
 KNO_LDFLAGS	::= -fPIC $(shell ${KNOCONFIG} ldflags)
-BSON_CFLAGS     ::= $(shell etc/pkc --cflags libbson-static-1.0)
-MONGO_CFLAGS    ::= $(shell etc/pkc --cflags libmongoc-static-1.0)
-BSON_LDFLAGS    ::= $(shell etc/pkc --libs libbson-static-1.0)
-MONGO_LDFLAGS   ::= $(shell etc/pkc --libs libmongoc-static-1.0)
-CFLAGS		::= ${CFLAGS} ${KNO_CFLAGS} ${BSON_CFLAGS} ${MONGO_CFLAGS}
-LDFLAGS		::= ${LDFLAGS} ${KNO_LDFLAGS} ${BSON_LDFLAGS} ${MONGO_LDFLAGS}
 CMODULES	::= $(DESTDIR)$(shell ${KNOCONFIG} cmodules)
 LIBS		::= $(shell ${KNOCONFIG} libs)
 LIB		::= $(shell ${KNOCONFIG} lib)
@@ -26,6 +20,16 @@ MOD_VERSION	::= ${KNO_MAJOR}.${KNO_MINOR}.${MOD_RELEASE}
 
 GPGID           ::= FE1BC737F9F323D732AA26330620266BE5AFF294
 SUDO            ::= $(shell which sudo)
+
+INIT_CFLAGS     ::= ${CFLAGS}
+INIT_LDFAGS     ::= ${LDFLAGS}
+BSON_CFLAGS       = $(shell etc/pkc --cflags libbson-static-1.0)
+BSON_LDFLAGS      = $(shell etc/pkc --libs libbson-static-1.0)
+MONGO_CFLAGS      = $(shell etc/pkc --cflags libmongoc-static-1.0)
+MONGO_LDFLAGS     = $(shell etc/pkc --libs libmongoc-static-1.0)
+CFLAGS		  = ${INIT_CFLAGS} ${KNO_CFLAGS} ${BSON_CFLAGS} ${MONGO_CFLAGS}
+LDFLAGS		  = ${INIT_LDFLAGS} ${KNO_LDFLAGS} ${BSON_LDFLAGS} ${MONGO_LDFLAGS}
+
 
 default build: mongodb.${libsuffix}
 
@@ -50,7 +54,7 @@ mongodb.so: mongodb.o mongodb.h makefile
 	          -Wl,--whole-archive ${STATICLIBS} -Wl,--no-whole-archive \
 		 $(LDFLAGS)
 	@if test ! -z "${COPY_CMODS}"; then cp $@ ${COPY_CMODS}; fi;
-	 @$(MSG) MKSO "(MONGODB)" $@
+	@$(MSG) MKSO "(MONGODB)" $@
 
 mongodb.dylib: mongodb.o mongodb.h
 	@$(MACLIBTOOL) -install_name \
@@ -85,7 +89,7 @@ suinstall doinstall:
 	sudo make install
 
 clean:
-	rm -f *.o *.${libsuffix}
+	rm -f *.o *.${libsuffix} *.${libsuffix}*
 deep-clean: clean
 	if test -f mongo-c-driver/Makefile; then cd mongo-c-driver; make clean; fi;
 	rm -rf mongo-c-driver/cmake-build installed
