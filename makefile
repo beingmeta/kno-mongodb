@@ -4,6 +4,7 @@ libsuffix	::= $(shell ${KNOCONFIG} libsuffix)
 KNO_CFLAGS	::= -I. -fPIC $(shell ${KNOCONFIG} cflags)
 KNO_LDFLAGS	::= -fPIC $(shell ${KNOCONFIG} ldflags)
 CMODULES	::= $(DESTDIR)$(shell ${KNOCONFIG} cmodules)
+INSTALLMODS	::= $(DESTDIR)$(shell ${KNOCONFIG} installmods)
 LIBS		::= $(shell ${KNOCONFIG} libs)
 LIB		::= $(shell ${KNOCONFIG} lib)
 INCLUDE		::= $(shell ${KNOCONFIG} include)
@@ -15,6 +16,8 @@ DPKG_NAME	::= $(shell ./etc/dpkgname)
 MKSO		::= $(CC) -shared $(LDFLAGS) $(LIBS)
 MSG		::= echo
 SYSINSTALL      ::= /usr/bin/install -c
+DIRINSTALL      ::= /usr/bin/install -d
+MODINSTALL      ::= /usr/bin/install -C --mode=0664
 MOD_RELEASE     ::= $(shell cat etc/release)
 MOD_VERSION	::= ${KNO_MAJOR}.${KNO_MINOR}.${MOD_RELEASE}
 
@@ -75,7 +78,11 @@ ${STATICLIBS}: mongo-c-driver/cmake-build/Makefile
 staticlibs: ${STATICLIBS}
 mongodb.dylib mongodb.so: staticlibs
 
-install: build
+install: install-cmodule install-scheme
+suinstall doinstall:
+	sudo make install
+
+install-cmodule: build
 	@${SUDO} ${SYSINSTALL} mongodb.${libsuffix} ${CMODULES}/mongodb.so.${MOD_VERSION}
 	@echo === Installed ${CMODULES}/mongodb.so.${MOD_VERSION}
 	@${SUDO} ln -sf mongodb.so.${MOD_VERSION} ${CMODULES}/mongodb.so.${KNO_MAJOR}.${KNO_MINOR}
@@ -85,8 +92,11 @@ install: build
 	@${SUDO} ln -sf mongodb.so.${MOD_VERSION} ${CMODULES}/mongodb.so
 	@echo === Linked ${CMODULES}/mongodb.so to mongodb.so.${MOD_VERSION}
 
-suinstall doinstall:
-	sudo make install
+${INSTALLMODS}/mongodb:
+	${SUDO} ${DIRINSTALL} $@
+
+install-scheme: ${INSTALLMODS}/mongodb
+	${SUDO} ${MODINSTALL} scheme/mongodb/*.scm ${INSTALLMODS}/mongodb
 
 clean:
 	rm -f *.o *.${libsuffix} *.${libsuffix}*

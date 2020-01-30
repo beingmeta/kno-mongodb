@@ -1,1 +1,2 @@
 usr/lib/kno/mongodb.so*
+usr/share/kno/modules/installed/mongodb/*.scm
