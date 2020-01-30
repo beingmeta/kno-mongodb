@@ -1,31 +1,22 @@
 # Contributor: beingmeta repository manager <repoman@beingmeta.com>
 # Maintainer: beingmeta repository manager <repoman@beingmeta.com>
 pkgname=kno-mongo
-pkgver=2001.1.1
-pkgrel=85
+pkgver=$(knoconfig major).$(knoconfig minor).1
+pkgrel=18
 pkgdesc="MongoDB bindings for KNO"
 url="https://kno.so/"
 arch="all"
 license="GPLV3"
 depends=""
-makedepends="kno-dev"
+makedepends="kno"
 install=""
 #subpackages="$pkgname-dev $pkgname-doc"
 subpackages=""
-source="https://github.com/beingmeta/kno-mongodb/archive/trunk.tar.gz"
-builddir="kno-mongodb"
+source="https://github.com/beingmeta/kno-mongo/archive/trunk.tar.gz"
+builddir="kno-mongo-trunk"
 
 build() {
-	wget ${source}
-	tar -xf trunk.tar.gz; rm trunk.tar.gz
-	./configure \
-		--build=$CBUILD \
-		--host=$CHOST \
-		--prefix=/usr \
-		--sysconfdir=/etc \
-		--mandir=/usr/share/man \
-		--localstatedir=/var \
-		--without-sudo
+	git clone git@github.com:mongodb/mongo-c-driver.git
 	make -j
 }
 
@@ -39,3 +30,4 @@ package() {
 	cd src/${builddir}
 	make DESTDIR="$pkgdir" SUDO= install
 }
+sha512sums="ca59d1d58ad5a3f57415168c274638ca06d125e1624fab42c611fbc9f3de94ade34e3e010bba26ba10147e3547189261fb8367349dadd0aa166361cc262c5a62  trunk.tar.gz"

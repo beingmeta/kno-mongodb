@@ -20,6 +20,7 @@ DIRINSTALL      ::= /usr/bin/install -d
 MODINSTALL      ::= /usr/bin/install -C --mode=0664
 MOD_RELEASE     ::= $(shell cat etc/release)
 MOD_VERSION	::= ${KNO_MAJOR}.${KNO_MINOR}.${MOD_RELEASE}
+APKREPO         ::= $(shell ${KNOCONFIG} apkrepo)
 
 GPGID           ::= FE1BC737F9F323D732AA26330620266BE5AFF294
 SUDO            ::= $(shell which sudo)
@@ -46,6 +47,7 @@ mongo-c-driver/cmake-build/Makefile: mongo-c-driver/.git
 	      -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
 	      -DCMAKE_INSTALL_PREFIX=../../installed \
 	      ..
+
 STATICLIBS=installed/lib/libbson-static-1.0.a installed/lib/libmongoc-static-1.0.a
 
 mongodb.o: mongodb.c mongodb.h makefile ${STATICLIBS}
@@ -143,3 +145,16 @@ debclean: clean
 debfresh:
 	make debclean
 	make dist/debian.built
+
+# Alpine packaging
+
+dist/alpine.done: dist/alpine/APKBUILD
+	cd dist/alpine; \
+		abuild -P ${APKREPO} clean cleancache cleanpkg && \
+		abuild -P ${APKREPO} checksum && \
+		abuild -P ${APKREPO} && \
+		cd ../..; touch $@
+
+alpine: dist/alpine.done
+
+.PHONY: alpine
