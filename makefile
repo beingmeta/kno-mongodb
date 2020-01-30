@@ -24,6 +24,7 @@ APKREPO         ::= $(shell ${KNOCONFIG} apkrepo)
 
 GPGID           ::= FE1BC737F9F323D732AA26330620266BE5AFF294
 SUDO            ::= $(shell which sudo)
+CMAKE_FLAGS       =
 
 INIT_CFLAGS     ::= ${CFLAGS}
 INIT_LDFAGS     ::= ${LDFLAGS}
@@ -148,9 +149,15 @@ debfresh:
 
 # Alpine packaging
 
-dist/alpine.done: dist/alpine/APKBUILD
+staging/alpine/APKBUILD: dist/alpine/APKBUILD
+	if test ! -d staging; then mkdir staging; fi
+	if test ! -d staging/alpine; then mkdir staging/alpine; fi
+	cp dist/alpine/APKBUILD staging/alpine/APKBUILD
+
+dist/alpine.done: staging/alpine/APKBUILD
 	cd dist/alpine; \
-		abuild -P ${APKREPO} clean cleancache cleanpkg && \
+		abuild -P ${APKREPO} clean cleancache cleanpkg
+	cd staging/alpine; \
 		abuild -P ${APKREPO} checksum && \
 		abuild -P ${APKREPO} && \
 		cd ../..; touch $@
