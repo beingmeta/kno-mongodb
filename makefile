@@ -24,7 +24,6 @@ APKREPO         ::= $(shell ${KNOCONFIG} apkrepo)
 
 GPGID           ::= FE1BC737F9F323D732AA26330620266BE5AFF294
 SUDO            ::= $(shell which sudo)
-CMAKE_FLAGS       =
 
 INIT_CFLAGS     ::= ${CFLAGS}
 INIT_LDFAGS     ::= ${LDFLAGS}
@@ -47,6 +46,7 @@ mongo-c-driver/cmake-build/Makefile: mongo-c-driver/.git
 	cmake -DENABLE_AUTOMATIC_INIT_AND_CLEANUP=OFF \
 	      -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
 	      -DCMAKE_INSTALL_PREFIX=../../installed \
+	      ${CMAKE_FLAGS} \
 	      ..
 
 STATICLIBS=installed/lib/libbson-static-1.0.a installed/lib/libmongoc-static-1.0.a
