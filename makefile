@@ -18,9 +18,9 @@ MSG		::= echo
 SYSINSTALL      ::= /usr/bin/install -c
 DIRINSTALL      ::= /usr/bin/install -d
 MODINSTALL      ::= /usr/bin/install -m 0664
-MOD_RELEASE     ::= $(shell cat etc/release)
-MOD_VERSION	::= ${KNO_MAJOR}.${KNO_MINOR}.${MOD_RELEASE}
-MOD_NAME	::= mongodb
+PKG_RELEASE     ::= $(shell cat etc/release)
+PKG_VERSION	::= ${KNO_MAJOR}.${KNO_MINOR}.${PKG_RELEASE}
+PKG_NAME	::= mongodb
 APKREPO         ::= $(shell ${KNOCONFIG} apkrepo)
 
 GPGID           ::= FE1BC737F9F323D732AA26330620266BE5AFF294
@@ -59,7 +59,7 @@ mongodb.o: mongodb.c mongodb.h makefile ${STATICLIBS}
 	@$(CC) $(CFLAGS) -o $@ -c $<
 	@$(MSG) CC "(MONGODB)" $@
 mongodb.so: mongodb.o mongodb.h makefile
-	@$(MKSO) -o $@ mongodb.o -Wl,-soname=$(@F).${MOD_VERSION} \
+	@$(MKSO) -o $@ mongodb.o -Wl,-soname=$(@F).${PKG_VERSION} \
 	          -Wl,--allow-multiple-definition \
 	          -Wl,--whole-archive ${STATICLIBS} -Wl,--no-whole-archive \
 		 $(LDFLAGS)
@@ -91,18 +91,17 @@ suinstall doinstall:
 	sudo make install
 
 ${CMODULES}:
-	@echo CMODULES=${CMODULES} @=$@
 	@${DIRINSTALL} ${CMODULES}
 
 install-cmodule: build ${CMODULES}
-	@${SUDO} ${SYSINSTALL} mongodb.${libsuffix} ${CMODULES}/mongodb.so.${MOD_VERSION}
-	@echo === Installed ${CMODULES}/mongodb.so.${MOD_VERSION}
-	@${SUDO} ln -sf mongodb.so.${MOD_VERSION} ${CMODULES}/mongodb.so.${KNO_MAJOR}.${KNO_MINOR}
-	@echo === Linked ${CMODULES}/mongodb.so.${KNO_MAJOR}.${KNO_MINOR} to mongodb.so.${MOD_VERSION}
-	@${SUDO} ln -sf mongodb.so.${MOD_VERSION} ${CMODULES}/mongodb.so.${KNO_MAJOR}
-	@echo === Linked ${CMODULES}/mongodb.so.${KNO_MAJOR} to mongodb.so.${MOD_VERSION}
-	@${SUDO} ln -sf mongodb.so.${MOD_VERSION} ${CMODULES}/mongodb.so
-	@echo === Linked ${CMODULES}/mongodb.so to mongodb.so.${MOD_VERSION}
+	@${SUDO} ${SYSINSTALL} mongodb.${libsuffix} ${CMODULES}/mongodb.so.${PKG_VERSION}
+	@echo === Installed ${CMODULES}/mongodb.so.${PKG_VERSION}
+	@${SUDO} ln -sf mongodb.so.${PKG_VERSION} ${CMODULES}/mongodb.so.${KNO_MAJOR}.${KNO_MINOR}
+	@echo === Linked ${CMODULES}/mongodb.so.${KNO_MAJOR}.${KNO_MINOR} to mongodb.so.${PKG_VERSION}
+	@${SUDO} ln -sf mongodb.so.${PKG_VERSION} ${CMODULES}/mongodb.so.${KNO_MAJOR}
+	@echo === Linked ${CMODULES}/mongodb.so.${KNO_MAJOR} to mongodb.so.${PKG_VERSION}
+	@${SUDO} ln -sf mongodb.so.${PKG_VERSION} ${CMODULES}/mongodb.so
+	@echo === Linked ${CMODULES}/mongodb.so to mongodb.so.${PKG_VERSION}
 
 ${INSTALLMODS}/mongodb:
 	${SUDO} ${DIRINSTALL} $@
@@ -167,11 +166,11 @@ staging/alpine:
 staging/alpine/APKBUILD: dist/alpine/APKBUILD staging/alpine
 	cp dist/alpine/APKBUILD staging/alpine
 
-staging/alpine/kno-${MOD_NAME}.tar: staging/alpine
-	git archive --prefix=kno-${MOD_NAME}/ -o staging/alpine/kno-${MOD_NAME}.tar HEAD
+staging/alpine/kno-${PKG_NAME}.tar: staging/alpine
+	git archive --prefix=kno-${PKG_NAME}/ -o staging/alpine/kno-${PKG_NAME}.tar HEAD
 
 dist/alpine.done: staging/alpine/APKBUILD makefile ${STATICLIBS} \
-	staging/alpine/kno-${MOD_NAME}.tar ${APKREPO}/dist/x86_64
+	staging/alpine/kno-${PKG_NAME}.tar ${APKREPO}/dist/x86_64
 	cd staging/alpine; \
 		abuild -P ${APKREPO} clean cleancache cleanpkg && \
 		abuild checksum && \
