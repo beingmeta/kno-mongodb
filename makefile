@@ -87,7 +87,7 @@ suinstall doinstall:
 
 ${CMODULES}:
 	@echo CMODULES=${CMODULES} @=$@
-	@${DIRINSTALL} $@
+	@${DIRINSTALL} ${CMODULES}
 
 install-cmodule: build ${CMODULES}
 	@${SUDO} ${SYSINSTALL} mongodb.${libsuffix} ${CMODULES}/mongodb.so.${MOD_VERSION}
