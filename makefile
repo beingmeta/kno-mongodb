@@ -85,6 +85,9 @@ install: install-cmodule install-scheme
 suinstall doinstall:
 	sudo make install
 
+${CMODULES}:
+	@${DIRINSTALL} $@
+
 install-cmodule: build
 	@${SUDO} ${SYSINSTALL} mongodb.${libsuffix} ${CMODULES}/mongodb.so.${MOD_VERSION}
 	@echo === Installed ${CMODULES}/mongodb.so.${MOD_VERSION}
@@ -155,9 +158,8 @@ staging/alpine/APKBUILD: dist/alpine/APKBUILD
 	cp dist/alpine/APKBUILD staging/alpine/APKBUILD
 
 dist/alpine.done: staging/alpine/APKBUILD
-	cd dist/alpine; \
-		abuild -P ${APKREPO} clean cleancache cleanpkg
 	cd staging/alpine; \
+		abuild -P ${APKREPO} clean cleancache cleanpkg && \
 		abuild -P ${APKREPO} checksum && \
 		abuild -P ${APKREPO} && \
 		cd ../..; touch $@
