@@ -20,6 +20,7 @@ DIRINSTALL      ::= /usr/bin/install -d
 MODINSTALL      ::= /usr/bin/install -m 0664
 MOD_RELEASE     ::= $(shell cat etc/release)
 MOD_VERSION	::= ${KNO_MAJOR}.${KNO_MINOR}.${MOD_RELEASE}
+MOD_NAME	::= mongodb
 APKREPO         ::= $(shell ${KNOCONFIG} apkrepo)
 
 GPGID           ::= FE1BC737F9F323D732AA26330620266BE5AFF294
@@ -49,6 +50,9 @@ mongo-c-driver/cmake-build/Makefile: mongo-c-driver/.git
 	      ${CMAKE_FLAGS} \
 	      ..
 
+installed:
+	if ! -d installed; then mkdir installed; fi
+
 STATICLIBS=installed/lib/libbson-static-1.0.a installed/lib/libmongoc-static-1.0.a
 
 mongodb.o: mongodb.c mongodb.h makefile ${STATICLIBS}
@@ -71,6 +75,7 @@ mongodb.dylib: mongodb.o mongodb.h
 	@$(MSG) MACLIBTOOL "(MONGODB)" $@
 
 ${STATICLIBS}: # mongo-c-driver/cmake-build/Makefile
+	make mongo-c-driver/cmake-build/Makefile
 	make -C mongo-c-driver/cmake-build install
 	if test -d installed/lib; then \
 	  echo > /dev/null; \
@@ -153,20 +158,27 @@ debfresh:
 
 # Alpine packaging
 
-staging/alpine/APKBUILD: dist/alpine/APKBUILD
-	if test ! -d staging; then mkdir staging; fi
-	if test ! -d staging/alpine; then mkdir staging/alpine; fi
-	cp dist/alpine/APKBUILD staging/alpine/APKBUILD
+${APKREPO}/dist/x86_64:
+	@install -d $@
 
-dist/alpine.done: staging/alpine/APKBUILD
-	cd dist/alpine; \
-		abuild -P ${APKREPO} clean cleancache cleanpkg
+staging/alpine:
+	@install -d $@
+
+staging/alpine/APKBUILD: dist/alpine/APKBUILD staging/alpine
+	cp dist/alpine/APKBUILD staging/alpine
+
+staging/alpine/kno-${MOD_NAME}.tar: staging/alpine
+	git archive --prefix=kno-${MOD_NAME}/ -o staging/alpine/kno-${MOD_NAME}.tar HEAD
+
+dist/alpine.done: staging/alpine/APKBUILD makefile ${STATICLIBS} \
+	staging/alpine/kno-${MOD_NAME}.tar ${APKREPO}/dist/x86_64
 	cd staging/alpine; \
 		abuild -P ${APKREPO} clean cleancache cleanpkg && \
-		abuild -P ${APKREPO} checksum && \
+		abuild checksum && \
 		abuild -P ${APKREPO} && \
-		cd ../..; touch $@
+		touch ../../$@
 
 alpine: dist/alpine.done
 
 .PHONY: alpine
+

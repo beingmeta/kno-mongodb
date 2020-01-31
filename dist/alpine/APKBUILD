@@ -1,6 +1,6 @@
 # Contributor: beingmeta repository manager <repoman@beingmeta.com>
 # Maintainer: beingmeta repository manager <repoman@beingmeta.com>
-pkgname=kno-mongo
+pkgname=kno-mongodb
 pkgver=$(knoconfig major).$(knoconfig minor).1
 pkgrel=18
 pkgdesc="MongoDB bindings for KNO"
@@ -12,21 +12,23 @@ makedepends="kno"
 install=""
 #subpackages="$pkgname-dev $pkgname-doc"
 subpackages=""
-source="https://github.com/beingmeta/kno-mongo/archive/trunk.tar.gz"
-builddir="kno-mongo-trunk"
+source="kno-mongodb.tar"
+builddir="kno-mongodb"
 
 build() {
+	echo "@build pwd=$(pwd) startdir=${startdir} srcdir=${srcdir} pkgdir=${pkgdir} builddir=${builddir}"
 	cp -r ../../../../installed .
 	make
 }
 
 check() {
+	echo "@check pwd=$(pwd) startdir=${startdir} srcdir=${srcdir} pkgdir=${pkgdir} builddir=${builddir}"
 	make
 }
 
 package() {
 	cd src/${builddir}
-	echo "pkgdir=${pkgdir}";
+	echo "@package pwd=$(pwd) startdir=${startdir} srcdir=${srcdir} pkgdir=${pkgdir} builddir=${builddir}"
 	make DESTDIR="$pkgdir" SUDO= install
 }
 	
