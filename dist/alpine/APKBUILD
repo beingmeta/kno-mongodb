@@ -13,22 +13,21 @@ install=""
 #subpackages="$pkgname-dev $pkgname-doc"
 subpackages=""
 source="kno-mongodb.tar"
-builddir="kno-mongodb"
+builddir="${srcdir}/kno-mongodb"
 
 build() {
-	echo "@build pwd=$(pwd) startdir=${startdir} srcdir=${srcdir} pkgdir=${pkgdir} builddir=${builddir}"
+#	echo "@build pwd=$(pwd) startdir=${startdir} srcdir=${srcdir} pkgdir=${pkgdir} builddir=${builddir}"
 	cp -r ../../../../installed .
 	make
 }
 
 check() {
-	echo "@check pwd=$(pwd) startdir=${startdir} srcdir=${srcdir} pkgdir=${pkgdir} builddir=${builddir}"
+#	echo "@check pwd=$(pwd) startdir=${startdir} srcdir=${srcdir} pkgdir=${pkgdir} builddir=${builddir}"
 	make
 }
 
 package() {
-	cd src/${builddir}
-	echo "@package pwd=$(pwd) startdir=${startdir} srcdir=${srcdir} pkgdir=${pkgdir} builddir=${builddir}"
+#	echo "@package pwd=$(pwd) startdir=${startdir} srcdir=${srcdir} pkgdir=${pkgdir} builddir=${builddir}"
 	make DESTDIR="$pkgdir" SUDO= install
 }
 	
