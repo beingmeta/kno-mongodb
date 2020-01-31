@@ -70,7 +70,7 @@ mongodb.dylib: mongodb.o mongodb.h
 	@if test ! -z "${COPY_CMODS}"; then cp $@ ${COPY_CMODS}; fi;
 	@$(MSG) MACLIBTOOL "(MONGODB)" $@
 
-${STATICLIBS}: mongo-c-driver/cmake-build/Makefile
+${STATICLIBS}: # mongo-c-driver/cmake-build/Makefile
 	make -C mongo-c-driver/cmake-build install
 	if test -d installed/lib; then \
 	  echo > /dev/null; \

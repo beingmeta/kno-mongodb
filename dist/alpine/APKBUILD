@@ -16,8 +16,8 @@ source="https://github.com/beingmeta/kno-mongo/archive/trunk.tar.gz"
 builddir="kno-mongo-trunk"
 
 build() {
-	git clone git@github.com:mongodb/mongo-c-driver.git
-	make CMAKE_FLAGS="-DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_INSTALL_LIBDIR=lib -DBUILD_SHARED_LIBS=True -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS=\"$CXXFLAGS\" -DCMAKE_C_FLAGS=\"$CFLAGS\""
+	cp -r ../../../../installed .
+	make
 }
 
 check() {
@@ -26,5 +26,11 @@ check() {
 
 package() {
 	cd src/${builddir}
+	echo "pkgdir=${pkgdir}";
 	make DESTDIR="$pkgdir" SUDO= install
 }
+	
+
+
+
+
