@@ -86,6 +86,7 @@ suinstall doinstall:
 	sudo make install
 
 ${CMODULES}:
+	@echo CMODULES=${CMODULES} @=$@
 	@${DIRINSTALL} $@
 
 install-cmodule: build
