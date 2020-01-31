@@ -89,7 +89,7 @@ ${CMODULES}:
 	@echo CMODULES=${CMODULES} @=$@
 	@${DIRINSTALL} $@
 
-install-cmodule: build
+install-cmodule: build ${CMODULES}
 	@${SUDO} ${SYSINSTALL} mongodb.${libsuffix} ${CMODULES}/mongodb.so.${MOD_VERSION}
 	@echo === Installed ${CMODULES}/mongodb.so.${MOD_VERSION}
 	@${SUDO} ln -sf mongodb.so.${MOD_VERSION} ${CMODULES}/mongodb.so.${KNO_MAJOR}.${KNO_MINOR}
