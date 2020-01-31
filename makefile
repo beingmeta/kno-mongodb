@@ -17,7 +17,7 @@ MKSO		::= $(CC) -shared $(LDFLAGS) $(LIBS)
 MSG		::= echo
 SYSINSTALL      ::= /usr/bin/install -c
 DIRINSTALL      ::= /usr/bin/install -d
-MODINSTALL      ::= /usr/bin/install -C --mode=0664
+MODINSTALL      ::= /usr/bin/install --mode=0664
 MOD_RELEASE     ::= $(shell cat etc/release)
 MOD_VERSION	::= ${KNO_MAJOR}.${KNO_MINOR}.${MOD_RELEASE}
 APKREPO         ::= $(shell ${KNOCONFIG} apkrepo)
