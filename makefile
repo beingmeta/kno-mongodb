@@ -122,7 +122,7 @@ debian: mongodb.c mongodb.h makefile \
 		dist/debian/changelog.base
 	rm -rf debian
 	cp -r dist/debian debian
-	cat debian/changelog.base | etc/gitchangelog kno-mongo > debian/changelog
+	cat debian/changelog.base | etc/gitchangelog kno-${PKG_NAME} > debian/changelog
 
 debian/changelog: debian mongodb.c mongodb.h makefile
 	cat debian/changelog.base | \
@@ -138,13 +138,13 @@ dist/debian.built: mongodb.c mongodb.h makefile debian debian/changelog
 	touch $@
 
 dist/debian.signed: dist/debian.built
-	debsign --re-sign -k${GPGID} ../kno-mongo_*.changes && \
+	debsign --re-sign -k${GPGID} ../kno-mongodb_*.changes && \
 	touch $@
 
 deb debs dpkg dpkgs: dist/debian.signed
 
 dist/debian.updated: dist/debian.signed
-	dupload -c ./dist/dupload.conf --nomail --to bionic ../kno-mongo_*.changes && touch $@
+	dupload -c ./dist/dupload.conf --nomail --to bionic ../kno-mongodb_*.changes && touch $@
 
 update-apt: dist/debian.updated
 
@@ -152,7 +152,7 @@ debinstall: dist/debian.signed
 	${SUDO} dpkg -i ../kno-mongo*.deb
 
 debclean: clean
-	rm -rf ../kno-mongo_* ../kno-mongo-* debian dist/debian.*
+	rm -rf ../kno-mongodb_* ../kno-mongodb-* debian dist/debian.*
 
 debfresh:
 	make debclean
