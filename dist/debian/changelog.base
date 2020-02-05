@@ -1,5 +1,5 @@
-kno-mongo (1910.0) stable; urgency=medium
+kno-mongodb (1910.0) stable; urgency=medium
 
-  * Initial create of separate dpkg for kno-mongo
+  * Initial create of separate dpkg for kno-mongodb
 
  -- Ken Haase <kh@beingmeta.com>  Fri, 16 Dec 2019 15:07:13 +0000
