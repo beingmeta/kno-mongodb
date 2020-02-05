@@ -32,10 +32,10 @@ INIT_CFLAGS     ::= ${CFLAGS}
 INIT_LDFAGS     ::= ${LDFLAGS}
 BSON_CFLAGS       = $(shell etc/pkc --cflags libbson-static-1.0)
 BSON_LDFLAGS      = $(shell etc/pkc --libs libbson-static-1.0)
-MONGO_CFLAGS      = $(shell etc/pkc --cflags libmongoc-static-1.0)
-MONGO_LDFLAGS     = $(shell etc/pkc --libs libmongoc-static-1.0)
-CFLAGS		  = ${INIT_CFLAGS} ${KNO_CFLAGS} ${BSON_CFLAGS} ${MONGO_CFLAGS}
-LDFLAGS		  = ${INIT_LDFLAGS} ${KNO_LDFLAGS} ${BSON_LDFLAGS} ${MONGO_LDFLAGS}
+MONGODB_CFLAGS    = $(shell etc/pkc --cflags libmongoc-static-1.0)
+MONGODB_LDFLAGS   = $(shell etc/pkc --libs libmongoc-static-1.0)
+CFLAGS		  = ${INIT_CFLAGS} ${KNO_CFLAGS} ${BSON_CFLAGS} ${MONGODB_CFLAGS}
+LDFLAGS		  = ${INIT_LDFLAGS} ${KNO_LDFLAGS} ${BSON_LDFLAGS} ${MONGODB_LDFLAGS}
 
 
 default build: mongodb.${libsuffix}
@@ -156,7 +156,7 @@ debclean: clean
 
 debfresh:
 	make debclean
-	make dist/debian.built
+	make dist/debian.signed
 
 # Alpine packaging
 
