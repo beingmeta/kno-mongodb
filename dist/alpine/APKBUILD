@@ -1,41 +1,37 @@
 # Contributor: beingmeta repository manager <repoman@beingmeta.com>
 # Maintainer: beingmeta repository manager <repoman@beingmeta.com>
-pkgname=kno-mongo
-pkgver=2001.1.1
-pkgrel=85
+pkgname=kno-mongodb
+pkgver=$(knoconfig major).$(knoconfig minor).1
+pkgrel=18
 pkgdesc="MongoDB bindings for KNO"
 url="https://kno.so/"
 arch="all"
 license="GPLV3"
 depends=""
-makedepends="kno-dev"
+makedepends="kno"
 install=""
 #subpackages="$pkgname-dev $pkgname-doc"
 subpackages=""
-source="https://github.com/beingmeta/kno-mongodb/archive/trunk.tar.gz"
-builddir="kno-mongodb"
+source="kno-mongodb.tar"
+builddir="${srcdir}/kno-mongodb"
 
 build() {
-	wget ${source}
-	tar -xf trunk.tar.gz; rm trunk.tar.gz
-	./configure \
-		--build=$CBUILD \
-		--host=$CHOST \
-		--prefix=/usr \
-		--sysconfdir=/etc \
-		--mandir=/usr/share/man \
-		--localstatedir=/var \
-		--without-sudo
-	make -j
+#	echo "@build pwd=$(pwd) startdir=${startdir} srcdir=${srcdir} pkgdir=${pkgdir} builddir=${builddir}"
+	cp -r ../../../../installed .
+	make
 }
 
 check() {
-	cd src/${builddir}
-	pwd
+#	echo "@check pwd=$(pwd) startdir=${startdir} srcdir=${srcdir} pkgdir=${pkgdir} builddir=${builddir}"
 	make
 }
 
 package() {
-	cd src/${builddir}
+#	echo "@package pwd=$(pwd) startdir=${startdir} srcdir=${srcdir} pkgdir=${pkgdir} builddir=${builddir}"
 	make DESTDIR="$pkgdir" SUDO= install
 }
+	
+
+
+
+
