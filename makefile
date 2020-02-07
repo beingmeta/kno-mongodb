@@ -38,8 +38,7 @@ PKG_RELEASE     ::= $(shell cat etc/release)
 PKG_VERSION	::= ${KNO_MAJOR}.${KNO_MINOR}.${PKG_RELEASE}
 CODENAME	::= $(shell ${KNOCONFIG} codename)
 RELSTATUS	::= $(shell ${KNOBUILD} BUILDSTATUS stable)
-DEFAULT_ARCH    ::= $(shell /bin/arch)
-ARCH            ::= $(shell ${KNOBUILD} ARCH ${DEFAULT_ARCH})
+ARCH            ::= $(shell ${KNOBUILD} getbuildopt BUILD_ARCH || uname -m)
 APKREPO         ::= $(shell ${KNOBUILD} getbuildopt APKREPO /srv/repo/kno/apk)
 APK_ARCH_DIR      = ${APKREPO}/staging/${ARCH}
 
