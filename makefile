@@ -1,5 +1,6 @@
 KNOCONFIG         = knoconfig
 KNOBUILD          = knobuild
+
 prefix		::= $(shell ${KNOCONFIG} prefix)
 libsuffix	::= $(shell ${KNOCONFIG} libsuffix)
 KNO_CFLAGS	::= -I. -fPIC $(shell ${KNOCONFIG} cflags)
@@ -14,12 +15,22 @@ KNO_MAJOR	::= $(shell ${KNOCONFIG} major)
 KNO_MINOR	::= $(shell ${KNOCONFIG} minor)
 PKG_RELEASE	::= $(cat ./etc/release)
 DPKG_NAME	::= $(shell ./etc/dpkgname)
-MKSO		::= $(CC) -shared $(LDFLAGS) $(LIBS)
-MSG		::= echo
-SYSINSTALL      ::= /usr/bin/install -c
-DIRINSTALL      ::= /usr/bin/install -d
 SUDO            ::= $(shell which sudo)
-MODINSTALL      ::= /usr/bin/install -m 0664
+
+INIT_CFLAGS     ::= ${CFLAGS}
+INIT_LDFAGS     ::= ${LDFLAGS}
+BSON_CFLAGS       = $(shell etc/pkc --cflags libbson-static-1.0)
+BSON_LDFLAGS      = $(shell etc/pkc --libs libbson-static-1.0)
+MONGODB_CFLAGS    = $(shell etc/pkc --cflags libmongoc-static-1.0)
+MONGODB_LDFLAGS   = $(shell etc/pkc --libs libmongoc-static-1.0)
+CFLAGS		  = ${INIT_CFLAGS} ${KNO_CFLAGS} ${BSON_CFLAGS} ${MONGODB_CFLAGS}
+LDFLAGS		  = ${INIT_LDFLAGS} ${KNO_LDFLAGS} ${BSON_LDFLAGS} ${MONGODB_LDFLAGS}
+
+MKSO		  = $(CC) -shared $(LDFLAGS) $(LIBS)
+SYSINSTALL        = /usr/bin/install -c
+DIRINSTALL        = /usr/bin/install -d
+MODINSTALL        = /usr/bin/install -m 0664
+MSG		  = echo
 
 PKG_NAME	  = mongodb
 GPGID             = FE1BC737F9F323D732AA26330620266BE5AFF294
@@ -31,16 +42,6 @@ DEFAULT_ARCH    ::= $(shell /bin/arch)
 ARCH            ::= $(shell ${KNOBUILD} ARCH ${DEFAULT_ARCH})
 APKREPO         ::= $(shell ${KNOBUILD} getbuildopt APKREPO /srv/repo/kno/apk)
 APK_ARCH_DIR      = ${APKREPO}/staging/${ARCH}
-
-INIT_CFLAGS     ::= ${CFLAGS}
-INIT_LDFAGS     ::= ${LDFLAGS}
-BSON_CFLAGS       = $(shell etc/pkc --cflags libbson-static-1.0)
-BSON_LDFLAGS      = $(shell etc/pkc --libs libbson-static-1.0)
-MONGODB_CFLAGS    = $(shell etc/pkc --cflags libmongoc-static-1.0)
-MONGODB_LDFLAGS   = $(shell etc/pkc --libs libmongoc-static-1.0)
-CFLAGS		  = ${INIT_CFLAGS} ${KNO_CFLAGS} ${BSON_CFLAGS} ${MONGODB_CFLAGS}
-LDFLAGS		  = ${INIT_LDFLAGS} ${KNO_LDFLAGS} ${BSON_LDFLAGS} ${MONGODB_LDFLAGS}
-
 
 default build: mongodb.${libsuffix}
 
