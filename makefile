@@ -37,7 +37,9 @@ GPGID             = FE1BC737F9F323D732AA26330620266BE5AFF294
 PKG_RELEASE     ::= $(shell cat etc/release)
 PKG_VERSION	::= ${KNO_MAJOR}.${KNO_MINOR}.${PKG_RELEASE}
 CODENAME	::= $(shell ${KNOCONFIG} codename)
-RELSTATUS	::= $(shell ${KNOBUILD} getbuildopt BUILDSTATUS stable)
+REL_BRANCH	::= $(shell ${KNOBUILD} getbuildopt REL_BRANCH current)
+REL_STATUS	::= $(shell ${KNOBUILD} getbuildopt REL_STATUS stable)
+REL_PRIORITY	::= $(shell ${KNOBUILD} getbuildopt REL_PRIORITY medium)
 ARCH            ::= $(shell ${KNOBUILD} getbuildopt BUILD_ARCH || uname -m)
 APKREPO         ::= $(shell ${KNOBUILD} getbuildopt APKREPO /srv/repo/kno/apk)
 APK_ARCH_DIR      = ${APKREPO}/staging/${ARCH}
@@ -133,12 +135,12 @@ debian: mongodb.c mongodb.h makefile \
 		dist/debian/changelog.base
 	rm -rf debian
 	cp -r dist/debian debian
-	cat debian/changelog.base | \
-		knobuild debchangelog kno-${PKG_NAME} ${CODENAME} ${RELSTATUS} > $@.tmp
 
 debian/changelog: debian mongodb.c mongodb.h makefile
 	cat debian/changelog.base | \
-		knobuild debchangelog kno-${PKG_NAME} ${CODENAME} ${RELSTATUS} > $@.tmp
+		knobuild debchangelog kno-${PKG_NAME} ${CODENAME} \
+			${REL_BRANCH} ${REL_STATUS} ${REL_PRIORITY} \
+	    > $@.tmp
 	if test ! -f debian/changelog; then \
 	  mv debian/changelog.tmp debian/changelog; \
 	elif diff debian/changelog debian/changelog.tmp 2>&1 > /dev/null; then \
