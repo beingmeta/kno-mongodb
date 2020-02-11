@@ -130,7 +130,7 @@ gitup gitup-trunk:
 
 # Debian packaging
 
-DEBFILES=changelog.base compat control copyright dirs docs files install
+DEBFILES=changelog.base compat control copyright dirs docs install
 
 debian: mongodb.c mongodb.h makefile \
 		dist/debian/rules dist/debian/control \
