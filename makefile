@@ -30,6 +30,7 @@ MKSO		  = $(CC) -shared $(LDFLAGS) $(LIBS)
 SYSINSTALL        = /usr/bin/install -c
 DIRINSTALL        = /usr/bin/install -d
 MODINSTALL        = /usr/bin/install -m 0664
+USEDIR        	  = /usr/bin/install -d
 MSG		  = echo
 
 PKG_NAME	  = mongodb
@@ -44,24 +45,21 @@ ARCH            ::= $(shell ${KNOBUILD} getbuildopt BUILD_ARCH || uname -m)
 APKREPO         ::= $(shell ${KNOBUILD} getbuildopt APKREPO /srv/repo/kno/apk)
 APK_ARCH_DIR      = ${APKREPO}/staging/${ARCH}
 
-default build: mongodb.${libsuffix}
+default: mongodb.${libsuffix}
 
 mongo-c-driver/.git:
 	git submodule init
 	git submodule update
-mongo-c-driver/cmake-build/Makefile: mongo-c-driver/.git
-	if test ! -d mongo-c-driver/cmake-build; then mkdir mongo-c-driver/cmake-build; fi && \
-	cd mongo-c-driver/cmake-build && \
+
+mongoc-build/Makefile: mongo-c-driver/.git
+	${USEDIR} mongoc-build
 	cmake -DENABLE_AUTOMATIC_INIT_AND_CLEANUP=OFF \
 	      -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
-	      -DCMAKE_INSTALL_PREFIX=../../installed \
+	      -DCMAKE_INSTALL_PREFIX=mongoc-install \
 	      ${CMAKE_FLAGS} \
-	      ..
+	      -S mongo-c-driver -B mongoc-build
 
-installed:
-	if ! -d installed; then mkdir installed; fi
-
-STATICLIBS=installed/lib/libbson-static-1.0.a installed/lib/libmongoc-static-1.0.a
+STATICLIBS=mongoc-install/lib/libbson-static-1.0.a mongoc-install/lib/libmongoc-static-1.0.a
 
 mongodb.o: mongodb.c mongodb.h makefile ${STATICLIBS}
 	@$(CC) $(CFLAGS) -o $@ -c $<
@@ -71,7 +69,7 @@ mongodb.so: mongodb.o mongodb.h makefile
 	          -Wl,--allow-multiple-definition \
 	          -Wl,--whole-archive ${STATICLIBS} -Wl,--no-whole-archive \
 		 $(LDFLAGS)
-	@if test ! -z "${COPY_CMODS}"; then cp $@ ${COPY_CMODS}; fi;
+	@if test ! -z "${COPY_CMODS}"; then cp $@ "${COPY_CMODS}"; fi;
 	@$(MSG) MKSO "(MONGODB)" $@
 
 mongodb.dylib: mongodb.o mongodb.h
@@ -79,16 +77,17 @@ mongodb.dylib: mongodb.o mongodb.h
 		`basename $(@F) .dylib`.${KNO_MAJOR}.dylib \
 		$(DYLIB_FLAGS) $(BSON_LDFLAGS) $(MONGODB_LDFLAGS) \
 		-o $@ mongodb.o 
-	@if test ! -z "${COPY_CMODS}"; then cp $@ ${COPY_CMODS}; fi;
+	@if test ! -z "${COPY_CMODS}"; then cp $@ "${COPY_CMODS}"; fi;
 	@$(MSG) MACLIBTOOL "(MONGODB)" $@
 
-${STATICLIBS}: # mongo-c-driver/cmake-build/Makefile
-	make mongo-c-driver/cmake-build/Makefile
-	make -C mongo-c-driver/cmake-build install
-	if test -d installed/lib; then \
+${STATICLIBS}: mongoc-build/Makefile
+	${USEDIR} mongoc-install
+	make -C mongoc-build install
+	touch ${STATICLIBS}
+	if test -d mongoc-install/lib; then \
 	  echo > /dev/null; \
-	elif test -d installed/lib64; then \
-	  ln -sf lib64 installed/lib; \
+	elif test -d mongoc-install/lib64; then \
+	  ln -sf lib64 mongoc-install/lib; \
 	else echo "No install libdir"; \
 	fi
 staticlibs: ${STATICLIBS}
@@ -101,7 +100,7 @@ suinstall doinstall:
 ${CMODULES}:
 	@${DIRINSTALL} ${CMODULES}
 
-install-cmodule: build ${CMODULES}
+install-cmodule: ${CMODULES}
 	@${SUDO} ${SYSINSTALL} mongodb.${libsuffix} ${CMODULES}/mongodb.so.${PKG_VERSION}
 	@echo === Installed ${CMODULES}/mongodb.so.${PKG_VERSION}
 	@${SUDO} ln -sf mongodb.so.${PKG_VERSION} ${CMODULES}/mongodb.so.${KNO_MAJOR}.${KNO_MINOR}
@@ -121,7 +120,7 @@ clean:
 	rm -f *.o *.${libsuffix} *.${libsuffix}*
 deep-clean: clean
 	if test -f mongo-c-driver/Makefile; then cd mongo-c-driver; make clean; fi;
-	rm -rf mongo-c-driver/cmake-build installed
+	rm -rf mongoc-build install
 fresh: clean
 	make
 

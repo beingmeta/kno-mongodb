@@ -1,5 +1,5 @@
 #!/bin/sh
-export PKG_CONFIG_PATH=./installed/lib/pkgconfig/
+export PKG_CONFIG_PATH=./mongoc-install/lib/pkgconfig/
 if pkg-config $* 2>&1 > /dev/null; then
     pkg-config $*;
 else echo;
