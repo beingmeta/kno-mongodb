@@ -19,10 +19,10 @@ SUDO            ::= $(shell which sudo)
 
 INIT_CFLAGS     ::= ${CFLAGS}
 INIT_LDFAGS     ::= ${LDFLAGS}
-BSON_CFLAGS       = $(shell etc/pkc --cflags libbson-static-1.0)
-BSON_LDFLAGS      = $(shell etc/pkc --libs libbson-static-1.0)
-MONGODB_CFLAGS    = $(shell etc/pkc --cflags libmongoc-static-1.0)
-MONGODB_LDFLAGS   = $(shell etc/pkc --libs libmongoc-static-1.0)
+BSON_CFLAGS       = $(shell etc/pkc --static --cflags libbson-static-1.0)
+BSON_LDFLAGS      = $(shell etc/pkc --static --libs libbson-static-1.0)
+MONGODB_CFLAGS    = $(shell etc/pkc --static --cflags libmongoc-static-1.0)
+MONGODB_LDFLAGS   = $(shell etc/pkc --static --libs libmongoc-static-1.0)
 CFLAGS		  = ${INIT_CFLAGS} ${KNO_CFLAGS} ${BSON_CFLAGS} ${MONGODB_CFLAGS}
 LDFLAGS		  = ${INIT_LDFLAGS} ${KNO_LDFLAGS} ${BSON_LDFLAGS} ${MONGODB_LDFLAGS}
 
