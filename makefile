@@ -1,5 +1,6 @@
 KNOCONFIG         = knoconfig
 KNOBUILD          = knobuild
+MONGOCINSTALL     = mongoc-install
 
 prefix		::= $(shell ${KNOCONFIG} prefix)
 libsuffix	::= $(shell ${KNOCONFIG} libsuffix)
@@ -19,10 +20,10 @@ SUDO            ::= $(shell which sudo)
 
 INIT_CFLAGS     ::= ${CFLAGS}
 INIT_LDFAGS     ::= ${LDFLAGS}
-BSON_CFLAGS       = $(shell etc/pkc --static --cflags libbson-static-1.0)
-BSON_LDFLAGS      = $(shell etc/pkc --static --libs libbson-static-1.0)
-MONGODB_CFLAGS    = $(shell etc/pkc --static --cflags libmongoc-static-1.0)
-MONGODB_LDFLAGS   = $(shell etc/pkc --static --libs libmongoc-static-1.0)
+BSON_CFLAGS     ::= $(shell INSTALLROOT=${MONGOCINSTALL} etc/pkc --static --cflags libbson-static-1.0)
+BSON_LDFLAGS    ::= $(shell INSTALLROOT=${MONGOCINSTALL} etc/pkc --static --libs libbson-static-1.0)
+MONGODB_CFLAGS  ::= $(shell INSTALLROOT=${MONGOCINSTALL} etc/pkc --static --cflags libmongoc-static-1.0)
+MONGODB_LDFLAGS ::= $(shell INSTALLROOT=${MONGOCINSTALL} etc/pkc --static --libs libmongoc-static-1.0)
 CFLAGS		  = ${INIT_CFLAGS} ${KNO_CFLAGS} ${BSON_CFLAGS} ${MONGODB_CFLAGS}
 LDFLAGS		  = ${INIT_LDFLAGS} ${KNO_LDFLAGS} ${BSON_LDFLAGS} ${MONGODB_LDFLAGS}
 
@@ -53,13 +54,13 @@ mongo-c-driver/.git:
 
 mongoc-build/Makefile: mongo-c-driver/.git
 	${USEDIR} mongoc-build
-	cmake -DENABLE_AUTOMATIC_INIT_AND_CLEANUP=OFF \
+	cd mongoc-build; cmake -DENABLE_AUTOMATIC_INIT_AND_CLEANUP=OFF \
 	      -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
-	      -DCMAKE_INSTALL_PREFIX=mongoc-install \
+	      -DCMAKE_INSTALL_PREFIX=../mongoc-install \
 	      ${CMAKE_FLAGS} \
-	      -S mongo-c-driver -B mongoc-build
+	      ../mongo-c-driver
 
-STATICLIBS=mongoc-install/lib/libbson-static-1.0.a mongoc-install/lib/libmongoc-static-1.0.a
+STATICLIBS=${MONGOCINSTALL}/lib/libbson-static-1.0.a ${MONGOCINSTALL}/lib/libmongoc-static-1.0.a
 
 mongodb.o: mongodb.c mongodb.h makefile ${STATICLIBS}
 	@$(CC) $(CFLAGS) -o $@ -c $<
@@ -80,16 +81,16 @@ mongodb.dylib: mongodb.o mongodb.h
 	@if test ! -z "${COPY_CMODS}"; then cp $@ "${COPY_CMODS}"; fi;
 	@$(MSG) MACLIBTOOL "(MONGODB)" $@
 
-${STATICLIBS}: mongoc-build/Makefile
+mongoc-install/lib/libbson-static-1.0.a mongoc-install/lib/libmongoc-static-1.0.a: mongoc-build/Makefile
 	${USEDIR} mongoc-install
 	make -C mongoc-build install
-	touch ${STATICLIBS}
 	if test -d mongoc-install/lib; then \
 	  echo > /dev/null; \
 	elif test -d mongoc-install/lib64; then \
 	  ln -sf lib64 mongoc-install/lib; \
 	else echo "No install libdir"; \
 	fi
+	touch ${STATICLIBS}
 staticlibs: ${STATICLIBS}
 mongodb.dylib mongodb.so: staticlibs
 

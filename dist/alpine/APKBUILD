@@ -17,13 +17,13 @@ builddir="${srcdir}/kno-mongodb"
 
 build() {
 #	echo "@build pwd=$(pwd) startdir=${startdir} srcdir=${srcdir} pkgdir=${pkgdir} builddir=${builddir}"
-	cp -r ../../../../installed .
-	make
+	cp -r ../../../../mongoc-install ./installed
+	make MONGOCINSTALL=./installed
 }
 
 check() {
 #	echo "@check pwd=$(pwd) startdir=${startdir} srcdir=${srcdir} pkgdir=${pkgdir} builddir=${builddir}"
-	make
+	make MONGOCINSTALL=./installed
 }
 
 package() {
