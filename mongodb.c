@@ -2546,7 +2546,11 @@ KNO_EXPORT lispval kno_bson_output(struct KNO_BSON_OUTPUT out,lispval obj)
   else if (KNO_SCHEMAPP(obj)) {
     struct KNO_SCHEMAP *smap = (kno_schemap) obj;
     lispval *schema = smap->table_schema;
+#if KNO_MAJOR_VERSION >= 2004
+    lispval *values = smap->table_values;
+#else
     lispval *values = smap->schema_values;
+#endif
     int i = 0, n = smap->schema_length;
     while (i < n) {
       lispval key = schema[i];
