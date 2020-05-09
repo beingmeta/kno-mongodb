@@ -124,6 +124,8 @@ deep-clean: clean
 	rm -rf mongoc-build install
 fresh: clean
 	make
+deep-fresh: deep-clean
+	make
 
 gitup gitup-trunk:
 	git checkout trunk && git pull
