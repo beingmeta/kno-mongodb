@@ -14,10 +14,16 @@ INCLUDE		::= $(shell ${KNOCONFIG} include)
 KNO_VERSION	::= $(shell ${KNOCONFIG} version)
 KNO_MAJOR	::= $(shell ${KNOCONFIG} major)
 KNO_MINOR	::= $(shell ${KNOCONFIG} minor)
-PKG_RELEASE	::= $(cat ./etc/release)
-DPKG_NAME	::= $(shell ./etc/dpkgname)
-SUDO            ::= $(shell which sudo)
+PKG_VERSION     ::= $(shell cat ./version)
+PKG_MAJOR       ::= $(shell cat ./version | cut -d. -f1)
+FULL_VERSION    ::= ${KNO_MAJOR}.${KNO_MINOR}.${PKG_VERSION}
+PATCHLEVEL      ::= $(shell u8_gitpatchcount ./version)
+PATCH_VERSION   ::= ${FULL_VERSION}-${PATCHLEVEL}
 
+PKG_NAME	::= mongodb
+DPKG_NAME	::= ${PKG_NAME}_${PATCH_VERSION}
+
+SUDO            ::= $(shell which sudo)
 INIT_CFLAGS     ::= ${CFLAGS}
 INIT_LDFAGS     ::= ${LDFLAGS}
 BSON_CFLAGS     ::= $(shell INSTALLROOT=${MONGOCINSTALL} etc/pkc --static --cflags libbson-static-1.0)
@@ -34,10 +40,7 @@ MODINSTALL        = /usr/bin/install -m 0664
 USEDIR        	  = /usr/bin/install -d
 MSG		  = echo
 
-PKG_NAME	  = mongodb
 GPGID             = FE1BC737F9F323D732AA26330620266BE5AFF294
-PKG_RELEASE     ::= $(shell cat etc/release)
-PKG_VERSION	::= ${KNO_MAJOR}.${KNO_MINOR}.${PKG_RELEASE}
 CODENAME	::= $(shell ${KNOCONFIG} codename)
 REL_BRANCH	::= $(shell ${KNOBUILD} getbuildopt REL_BRANCH current)
 REL_STATUS	::= $(shell ${KNOBUILD} getbuildopt REL_STATUS stable)
@@ -66,7 +69,7 @@ mongodb.o: mongodb.c mongodb.h makefile ${STATICLIBS}
 	@$(CC) $(CFLAGS) -o $@ -c $<
 	@$(MSG) CC "(MONGODB)" $@
 mongodb.so: mongodb.o mongodb.h makefile
-	@$(MKSO) -o $@ mongodb.o -Wl,-soname=$(@F).${PKG_VERSION} \
+	@$(MKSO) -o $@ mongodb.o -Wl,-soname=$(@F).${FULL_VERSION} \
 	          -Wl,--allow-multiple-definition \
 	          -Wl,--whole-archive ${STATICLIBS} -Wl,--no-whole-archive \
 		 $(LDFLAGS)
@@ -102,14 +105,16 @@ ${CMODULES}:
 	@${DIRINSTALL} ${CMODULES}
 
 install-cmodule: ${CMODULES}
-	@${SUDO} ${SYSINSTALL} mongodb.${libsuffix} ${CMODULES}/mongodb.so.${PKG_VERSION}
-	@echo === Installed ${CMODULES}/mongodb.so.${PKG_VERSION}
-	@${SUDO} ln -sf mongodb.so.${PKG_VERSION} ${CMODULES}/mongodb.so.${KNO_MAJOR}.${KNO_MINOR}
-	@echo === Linked ${CMODULES}/mongodb.so.${KNO_MAJOR}.${KNO_MINOR} to mongodb.so.${PKG_VERSION}
-	@${SUDO} ln -sf mongodb.so.${PKG_VERSION} ${CMODULES}/mongodb.so.${KNO_MAJOR}
-	@echo === Linked ${CMODULES}/mongodb.so.${KNO_MAJOR} to mongodb.so.${PKG_VERSION}
-	@${SUDO} ln -sf mongodb.so.${PKG_VERSION} ${CMODULES}/mongodb.so
-	@echo === Linked ${CMODULES}/mongodb.so to mongodb.so.${PKG_VERSION}
+	@${SUDO} ${SYSINSTALL} mongodb.${libsuffix} ${CMODULES}/mongodb.so.${FULL_VERSION}
+	@echo === Installed ${CMODULES}/mongodb.so.${FULL_VERSION}
+	@${SUDO} ln -sf mongodb.so.${FULL_VERSION} ${CMODULES}/mongodb.so.${KNO_MAJOR}.${KNO_MINOR}.${PKG_MAJOR}
+	@echo === Linked ${CMODULES}/mongodb.so.${KNO_MAJOR}.${KNO_MINOR}.${PKG_MAJOR} to mongodb.so.${FULL_VERSION}
+	@${SUDO} ln -sf mongodb.so.${FULL_VERSION} ${CMODULES}/mongodb.so.${KNO_MAJOR}.${KNO_MINOR}
+	@echo === Linked ${CMODULES}/mongodb.so.${KNO_MAJOR}.${KNO_MINOR} to mongodb.so.${FULL_VERSION}
+	@${SUDO} ln -sf mongodb.so.${FULL_VERSION} ${CMODULES}/mongodb.so.${KNO_MAJOR}
+	@echo === Linked ${CMODULES}/mongodb.so.${KNO_MAJOR} to mongodb.so.${FULL_VERSION}
+	@${SUDO} ln -sf mongodb.so.${FULL_VERSION} ${CMODULES}/mongodb.so
+	@echo === Linked ${CMODULES}/mongodb.so to mongodb.so.${FULL_VERSION}
 
 ${INSTALLMODS}/mongodb:
 	${SUDO} ${DIRINSTALL} $@
