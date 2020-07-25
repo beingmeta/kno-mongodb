@@ -73,7 +73,6 @@ mongodb.so: mongodb.o mongodb.h makefile
 	          -Wl,--allow-multiple-definition \
 	          -Wl,--whole-archive ${STATICLIBS} -Wl,--no-whole-archive \
 		 $(LDFLAGS)
-	@if test ! -z "${COPY_CMODS}"; then cp $@ "${COPY_CMODS}"; fi;
 	@$(MSG) MKSO "(MONGODB)" $@
 
 mongodb.dylib: mongodb.o mongodb.h
@@ -81,7 +80,6 @@ mongodb.dylib: mongodb.o mongodb.h
 		`basename $(@F) .dylib`.${KNO_MAJOR}.dylib \
 		$(DYLIB_FLAGS) $(BSON_LDFLAGS) $(MONGODB_LDFLAGS) \
 		-o $@ mongodb.o 
-	@if test ! -z "${COPY_CMODS}"; then cp $@ "${COPY_CMODS}"; fi;
 	@$(MSG) MACLIBTOOL "(MONGODB)" $@
 
 mongoc-install/lib/libbson-static-1.0.a mongoc-install/lib/libmongoc-static-1.0.a: mongoc-build/Makefile
