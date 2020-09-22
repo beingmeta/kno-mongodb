@@ -39,6 +39,8 @@ DIRINSTALL        = /usr/bin/install -d
 MODINSTALL        = /usr/bin/install -m 0664
 USEDIR        	  = /usr/bin/install -d
 MSG		  = echo
+MACLIBTOOL	  = $(CC) -dynamiclib -single_module -undefined dynamic_lookup \
+			$(LDFLAGS)
 
 GPGID             = FE1BC737F9F323D732AA26330620266BE5AFF294
 CODENAME	::= $(shell ${KNOCONFIG} codename)
@@ -103,16 +105,7 @@ ${CMODULES}:
 	@${DIRINSTALL} ${CMODULES}
 
 install-cmodule: ${CMODULES}
-	@${SUDO} ${SYSINSTALL} mongodb.${libsuffix} ${CMODULES}/mongodb.so.${FULL_VERSION}
-	@echo === Installed ${CMODULES}/mongodb.so.${FULL_VERSION}
-	@${SUDO} ln -sf mongodb.so.${FULL_VERSION} ${CMODULES}/mongodb.so.${KNO_MAJOR}.${KNO_MINOR}.${PKG_MAJOR}
-	@echo === Linked ${CMODULES}/mongodb.so.${KNO_MAJOR}.${KNO_MINOR}.${PKG_MAJOR} to mongodb.so.${FULL_VERSION}
-	@${SUDO} ln -sf mongodb.so.${FULL_VERSION} ${CMODULES}/mongodb.so.${KNO_MAJOR}.${KNO_MINOR}
-	@echo === Linked ${CMODULES}/mongodb.so.${KNO_MAJOR}.${KNO_MINOR} to mongodb.so.${FULL_VERSION}
-	@${SUDO} ln -sf mongodb.so.${FULL_VERSION} ${CMODULES}/mongodb.so.${KNO_MAJOR}
-	@echo === Linked ${CMODULES}/mongodb.so.${KNO_MAJOR} to mongodb.so.${FULL_VERSION}
-	@${SUDO} ln -sf mongodb.so.${FULL_VERSION} ${CMODULES}/mongodb.so
-	@echo === Linked ${CMODULES}/mongodb.so to mongodb.so.${FULL_VERSION}
+	${SUDO} u8_install_shared ${PKG_NAME}.${libsuffix} ${CMODULES} ${FULL_VERSION} "${SYSINSTALL}"
 
 ${INSTALLMODS}/mongodb:
 	${SUDO} ${DIRINSTALL} $@
