@@ -52,11 +52,16 @@ ARCH            ::= $(shell ${KNOBUILD} getbuildopt BUILD_ARCH || uname -m)
 APKREPO         ::= $(shell ${KNOBUILD} getbuildopt APKREPO /srv/repo/kno/apk)
 APK_ARCH_DIR      = ${APKREPO}/staging/${ARCH}
 
-default: mongodb.${libsuffix}
+STATICLIBS=${MONGOCINSTALL}/lib/libbson-static-1.0.a \
+	${MONGOCINSTALL}/lib/libmongoc-static-1.0.a
+
+default:
+	@make ${STATICLIBS}
+	@make mongodb.${libsuffix}
 
 mongo-c-driver/.git:
-	git submodule init
-	git submodule update
+	@git submodule init
+	@git submodule update
 
 mongoc-build/Makefile: mongo-c-driver/.git
 	${USEDIR} mongoc-build
@@ -65,8 +70,6 @@ mongoc-build/Makefile: mongo-c-driver/.git
 	      -DCMAKE_INSTALL_PREFIX=../mongoc-install \
 	      ${CMAKE_FLAGS} \
 	      ../mongo-c-driver
-
-STATICLIBS=${MONGOCINSTALL}/lib/libbson-static-1.0.a ${MONGOCINSTALL}/lib/libmongoc-static-1.0.a
 
 mongodb.o: mongodb.c mongodb.h makefile ${STATICLIBS}
 	@$(CC) $(CFLAGS) -o $@ -c $<
