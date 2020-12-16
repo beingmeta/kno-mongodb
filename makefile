@@ -72,7 +72,7 @@ mongoc-build/Makefile: mongo-c-driver/.git
 	      ../mongo-c-driver
 
 mongodb.o: mongodb.c mongodb.h makefile ${STATICLIBS}
-	@$(CC) $(CFLAGS) -o $@ -c $<
+	@$(CC) $(CFLAGS) -D_FILEINFO="\"$(shell u8_fileinfo ./$< $(dirname $(pwd))/)\"" -o $@ -c $<
 	@$(MSG) CC "(MONGODB)" $@
 mongodb.so: mongodb.o mongodb.h makefile
 	@$(MKSO) -o $@ mongodb.o -Wl,-soname=$(@F).${FULL_VERSION} \

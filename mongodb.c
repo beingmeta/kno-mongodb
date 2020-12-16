@@ -43,6 +43,9 @@ u8_condition kno_BSON_Compound_Overflow=_("BSON/Kno compound overflow");
 
 /* These are the new cons types introducted for mongodb */
 kno_lisp_type kno_mongoc_server, kno_mongoc_collection, kno_mongoc_cursor;
+#define KNO_MONGOC_SERVER kno_any_type
+#define KNO_MONGOC_COLLECTION kno_any_type
+#define KNO_MONGOC_CURSOR kno_any_type
 
 #define KNO_FIND_MATCHES  1
 #define KNO_COUNT_MATCHES 0
@@ -91,9 +94,12 @@ static lispval primarysym, primarypsym, secondarysym, secondarypsym;
 static lispval nearestsym, poolmaxsym;
 static lispval mongovec_symbol;
 
-DEFPRIM1("mongodb/oid",mongodb_oidref,KNO_MAX_ARGS(1)|KNO_MIN_ARGS(1),
-	 "`(MONGODB/OID *arg0*)` **undocumented**",
-	 kno_any_type,KNO_VOID);
+
+KNO_DEFCPRIM("mongodb/oid",mongodb_oidref,
+	     KNO_MAX_ARGS(1)|KNO_MIN_ARGS(1),
+	     "`(MONGODB/OID *arg0*)` "
+	     "**undocumented**",
+	     "oid",kno_any_type,KNO_VOID)
 static lispval mongodb_oidref(lispval oid)
 {
   if (KNO_OIDP(oid)) {
@@ -720,9 +726,13 @@ static u8_string mongodb_check(mongoc_client_pool_t *client_pool)
 
 /* This returns a MongoDB server object which wraps a MongoDB client
    pool. */
-DEFPRIM2("mongodb/open",mongodb_open,KNO_MAX_ARGS(2)|KNO_MIN_ARGS(1),
-	 "`(MONGODB/OPEN *arg0* [*arg1*])` **undocumented**",
-	 kno_any_type,KNO_VOID,kno_any_type,KNO_VOID);
+
+KNO_DEFCPRIM("mongodb/open",mongodb_open,
+	     KNO_MAX_ARGS(2)|KNO_MIN_ARGS(1),
+	     "`(MONGODB/OPEN *arg0* [*arg1*])` "
+	     "**undocumented**",
+	     "arg",kno_any_type,KNO_VOID,
+	     "opts",kno_any_type,KNO_VOID)
 static lispval mongodb_open(lispval arg,lispval opts)
 {
   mongoc_client_pool_t *client_pool;
@@ -865,10 +875,14 @@ static int setup_tls(mongoc_ssl_opt_t *ssl_opts,
    that it won't correspond to a single mongoc_collection_t object,
    but that each use of the collection will pop a client from the pool
    and create a collection with that client. */
-DEFPRIM3("collection/open",mongodb_collection,KNO_MAX_ARGS(3)|KNO_MIN_ARGS(1),
-	 "`(COLLECTION/OPEN *arg0* [*arg1*] [*arg2*])` **undocumented**",
-	 kno_any_type,KNO_VOID,kno_string_type,KNO_VOID,
-	 kno_any_type,KNO_VOID);
+
+KNO_DEFCPRIM("collection/open",mongodb_collection,
+	     KNO_MAX_ARGS(3)|KNO_MIN_ARGS(1),
+	     "`(COLLECTION/OPEN *arg0* [*arg1*] [*arg2*])` "
+	     "**undocumented**",
+	     "server",kno_any_type,KNO_VOID,
+	     "name_arg",kno_string_type,KNO_VOID,
+	     "opts_arg",kno_any_type,KNO_VOID)
 static lispval mongodb_collection(lispval server,lispval name_arg,
 				  lispval opts_arg)
 {
@@ -977,10 +991,14 @@ static void collection_done(mongoc_collection_t *collection,
 /* Basic operations on collections */
 
 #if HAVE_MONGOC_BULK_OPERATION_WITH_OPTS
-DEFPRIM3("collection/insert!",mongodb_insert,KNO_MAX_ARGS(3)|KNO_MIN_ARGS(2)|KNO_NDOP,
-	 "(COLLECTION/INSERT! *collection* *objects* *opts*) **undocumented**",
-	 kno_any_type,KNO_VOID,kno_any_type,KNO_VOID,
-	 kno_any_type,KNO_FALSE);
+
+KNO_DEFCPRIM("collection/insert!",mongodb_insert,
+	     KNO_MAX_ARGS(3)|KNO_MIN_ARGS(2)|KNO_NDCALL,
+	     "(COLLECTION/INSERT! *collection* *objects* *opts*) "
+	     "**undocumented**",
+	     "arg",kno_any_type,KNO_VOID,
+	     "objects",kno_any_type,KNO_VOID,
+	     "opts_arg",kno_any_type,KNO_FALSE)
 static lispval mongodb_insert(lispval arg,lispval objects,lispval opts_arg)
 {
   if (KNO_EMPTY_CHOICEP(arg))
@@ -1064,10 +1082,14 @@ static lispval mongodb_insert(lispval arg,lispval objects,lispval opts_arg)
   return result;
 }
 #else
-DEFPRIM3("collection/insert!",mongodb_insert,KNO_MAX_ARGS(3)|KNO_MIN_ARGS(2)|KNO_NDOP,
-	 "(COLLECTION/INSERT! *collection* *objects* *opts*) **undocumented**",
-	 kno_any_type,KNO_VOID,kno_any_type,KNO_VOID,
-	 kno_any_type,KNO_FALSE);
+
+KNO_DEFCPRIM("collection/insert!",mongodb_insert,
+	     KNO_MAX_ARGS(3)|KNO_MIN_ARGS(2)|KNO_NDCALL,
+	     "(COLLECTION/INSERT! *collection* *objects* *opts*) "
+	     "**undocumented**",
+	     "arg",kno_any_type,KNO_VOID,
+	     "objects",kno_any_type,KNO_VOID,
+	     "opts_arg",kno_any_type,KNO_FALSE)
 static lispval mongodb_insert(lispval arg,lispval objects,lispval opts_arg)
 {
   if (KNO_EMPTY_CHOICEP(arg))
@@ -1148,8 +1170,14 @@ static lispval mongodb_insert(lispval arg,lispval objects,lispval opts_arg)
 }
 #endif
 
-DEFPRIM("collection/remove!",mongodb_remove,KNO_MAX_ARGS(3)|KNO_MIN_ARGS(2),
-	"`(COLLECTION/REMOVE! *arg0* *arg1* [*arg2*])` **undocumented**");
+
+KNO_DEFCPRIM("collection/remove!",mongodb_remove,
+	     KNO_MAX_ARGS(3)|KNO_MIN_ARGS(2),
+	     "`(COLLECTION/REMOVE! *arg0* *arg1* [*arg2*])` "
+	     "**undocumented**",
+	     "arg",kno_any_type,KNO_VOID,
+	     "obj",kno_any_type,KNO_VOID,
+	     "opts_arg",kno_any_type,KNO_VOID)
 static lispval mongodb_remove(lispval arg,lispval obj,lispval opts_arg)
 {
   lispval result = KNO_VOID;
@@ -1269,8 +1297,15 @@ static lispval mongodb_updater(lispval arg,lispval query,lispval update,
     return KNO_ERROR_VALUE;}
 }
 
-DEFPRIM("collection/update!",mongodb_update,KNO_MAX_ARGS(4)|KNO_MIN_ARGS(2),
-	"(COLLECTION/UPDATE! *collection* *object* *opts*) **undocumented**");
+
+KNO_DEFCPRIM("collection/update!",mongodb_update,
+	     KNO_MAX_ARGS(4)|KNO_MIN_ARGS(2),
+	     "(COLLECTION/UPDATE! *collection* *object* *opts*) "
+	     "**undocumented**",
+	     "arg",kno_any_type,KNO_VOID,
+	     "query",kno_any_type,KNO_VOID,
+	     "update",kno_any_type,KNO_VOID,
+	     "opts_arg",kno_any_type,KNO_VOID)
 static lispval mongodb_update(lispval arg,lispval query,lispval update,
 			      lispval opts_arg)
 {
@@ -1278,8 +1313,15 @@ static lispval mongodb_update(lispval arg,lispval query,lispval update,
 }
 
 
-DEFPRIM("collection/upsert!",mongodb_upsert,KNO_MAX_ARGS(4)|KNO_MIN_ARGS(2),
-	"(COLLECTION/UPSERT! *collection* *object* *opts*) **undocumented**");
+
+KNO_DEFCPRIM("collection/upsert!",mongodb_upsert,
+	     KNO_MAX_ARGS(4)|KNO_MIN_ARGS(2),
+	     "(COLLECTION/UPSERT! *collection* *object* *opts*) "
+	     "**undocumented**",
+	     "arg",kno_any_type,KNO_VOID,
+	     "query",kno_any_type,KNO_VOID,
+	     "update",kno_any_type,KNO_VOID,
+	     "opts_arg",kno_any_type,KNO_VOID)
 static lispval mongodb_upsert(lispval arg,lispval query,lispval update,
 			      lispval opts_arg)
 {
@@ -1287,8 +1329,14 @@ static lispval mongodb_upsert(lispval arg,lispval query,lispval update,
 }
 
 #if HAVE_MONGOC_OPTS_FUNCTIONS
-DEFPRIM("collection/find",mongodb_find,KNO_MAX_ARGS(3)|KNO_MIN_ARGS(2),
-	"`(COLLECTION/FIND *arg0* *arg1* [*arg2*])` **undocumented**");
+
+KNO_DEFCPRIM("collection/find",mongodb_find,
+	     KNO_MAX_ARGS(3)|KNO_MIN_ARGS(2),
+	     "`(COLLECTION/FIND *arg0* *arg1* [*arg2*])` "
+	     "**undocumented**",
+	     "arg",kno_any_type,KNO_VOID,
+	     "query",kno_any_type,KNO_VOID,
+	     "opts_arg",kno_any_type,KNO_VOID)
 static lispval mongodb_find(lispval arg,lispval query,lispval opts_arg)
 {
   struct KNO_MONGODB_COLLECTION *domain = (struct KNO_MONGODB_COLLECTION *)arg;
@@ -1369,8 +1417,14 @@ static lispval mongodb_find(lispval arg,lispval query,lispval opts_arg)
     return KNO_ERROR_VALUE;}
 }
 #else
-DEFPRIM("collection/find",mongodb_find,KNO_MAX_ARGS(3)|KNO_MIN_ARGS(2),
-	"`(COLLECTION/FIND *arg0* *arg1* [*arg2*])` **undocumented**");
+
+KNO_DEFCPRIM("collection/find",mongodb_find,
+	     KNO_MAX_ARGS(3)|KNO_MIN_ARGS(2),
+	     "`(COLLECTION/FIND *arg0* *arg1* [*arg2*])` "
+	     "**undocumented**",
+	     "arg",kno_any_type,KNO_VOID,
+	     "query",kno_any_type,KNO_VOID,
+	     "opts_arg",kno_any_type,KNO_VOID)
 static lispval mongodb_find(lispval arg,lispval query,lispval opts_arg)
 {
   struct KNO_MONGODB_COLLECTION *domain = (struct KNO_MONGODB_COLLECTION *)arg;
@@ -1449,8 +1503,14 @@ static lispval mongodb_find(lispval arg,lispval query,lispval opts_arg)
 }
 #endif
 
-DEFPRIM("collection/count",mongodb_count,KNO_MAX_ARGS(3)|KNO_MIN_ARGS(2),
-	"`(COLLECTION/COUNT *arg0* *arg1* [*arg2*])` **undocumented**");
+
+KNO_DEFCPRIM("collection/count",mongodb_count,
+	     KNO_MAX_ARGS(3)|KNO_MIN_ARGS(2),
+	     "`(COLLECTION/COUNT *arg0* *arg1* [*arg2*])` "
+	     "**undocumented**",
+	     "arg",kno_any_type,KNO_VOID,
+	     "query",kno_any_type,KNO_VOID,
+	     "opts_arg",kno_any_type,KNO_VOID)
 static lispval mongodb_count(lispval arg,lispval query,lispval opts_arg)
 {
   struct KNO_MONGODB_COLLECTION *domain = (struct KNO_MONGODB_COLLECTION *)arg;
@@ -1502,8 +1562,14 @@ static lispval mongodb_count(lispval arg,lispval query,lispval opts_arg)
     return KNO_ERROR_VALUE;}
 }
 
-DEFPRIM("collection/get",mongodb_get,KNO_MAX_ARGS(3)|KNO_MIN_ARGS(2),
-	"`(COLLECTION/GET *arg0* *arg1* [*arg2*])` **undocumented**");
+
+KNO_DEFCPRIM("collection/get",mongodb_get,
+	     KNO_MAX_ARGS(3)|KNO_MIN_ARGS(2),
+	     "`(COLLECTION/GET *arg0* *arg1* [*arg2*])` "
+	     "**undocumented**",
+	     "arg",kno_any_type,KNO_VOID,
+	     "query",kno_any_type,KNO_VOID,
+	     "opts_arg",kno_any_type,KNO_VOID)
 static lispval mongodb_get(lispval arg,lispval query,lispval opts_arg)
 {
   lispval result = KNO_EMPTY_CHOICE;
@@ -1554,8 +1620,15 @@ static lispval mongodb_get(lispval arg,lispval query,lispval opts_arg)
 
 static int getnewopt(lispval opts,int dflt);
 
-DEFPRIM("collection/modify!",mongodb_modify,KNO_MAX_ARGS(4)|KNO_MIN_ARGS(3),
-	"`(COLLECTION/MODIFY! *arg0* *arg1* *arg2* [*arg3*])` **undocumented**");
+
+KNO_DEFCPRIM("collection/modify!",mongodb_modify,
+	     KNO_MAX_ARGS(4)|KNO_MIN_ARGS(3),
+	     "`(COLLECTION/MODIFY! *arg0* *arg1* *arg2* [*arg3*])` "
+	     "**undocumented**",
+	     "arg",kno_any_type,KNO_VOID,
+	     "query",kno_any_type,KNO_VOID,
+	     "update",kno_any_type,KNO_VOID,
+	     "opts_arg",kno_any_type,KNO_VOID)
 static lispval mongodb_modify(lispval arg,lispval query,lispval update,
 			      lispval opts_arg)
 {
@@ -1639,7 +1712,18 @@ static int getnewopt(lispval opts,int dflt)
 
 /* Command execution */
 
-static lispval make_mongovec(lispval vec);
+KNO_DEFCPRIM("->mongovec",make_mongovec,
+	     KNO_MAX_ARGS(1)|KNO_MIN_ARGS(1),
+	     "`(->MONGOVEC *arg0*)` "
+	     "**undocumented**",
+	     "vec",kno_vector_type,KNO_VOID)
+static lispval make_mongovec(lispval vec)
+{
+  lispval *elts = KNO_VECTOR_ELTS(vec);
+  int n = KNO_VECTOR_LENGTH(vec);
+  return kno_init_compound_from_elts
+    (NULL,mongovec_symbol,KNO_COMPOUND_INCREF|KNO_COMPOUND_SEQUENCE,n,elts);
+}
 
 static lispval make_command(int n,kno_argvec values)
 {
@@ -1770,8 +1854,11 @@ static lispval db_command(lispval arg,lispval command,
   else return KNO_ERROR_VALUE;
 }
 
-DEFPRIM("mongodb/results",mongodb_command,KNO_VAR_ARGS|KNO_MIN_ARGS(2),
-	"`(MONGODB/RESULTS *arg0* *arg1* *args...*)` **undocumented**");
+
+KNO_DEFCPRIMN("mongodb/results",mongodb_command,
+	      KNO_VAR_ARGS|KNO_MIN_ARGS(2),
+	      "`(MONGODB/RESULTS *arg0* *arg1* *args...*)` "
+	      "**undocumented**")
 static lispval mongodb_command(int n,kno_argvec args)
 {
   lispval arg = args[0], opts = KNO_VOID, command = KNO_VOID, result = KNO_VOID;
@@ -1874,8 +1961,11 @@ static lispval db_simple_command(lispval arg,lispval command,
   else return KNO_ERROR_VALUE;
 }
 
-DEFPRIM("mongodb/cmd",mongodb_simple_command,KNO_VAR_ARGS|KNO_MIN_ARGS(2),
-	"`(MONGODB/CMD *arg0* *arg1* *args...*)` **undocumented**");
+
+KNO_DEFCPRIMN("mongodb/cmd",mongodb_simple_command,
+	      KNO_VAR_ARGS|KNO_MIN_ARGS(2),
+	      "`(MONGODB/CMD *arg0* *arg1* *args...*)` "
+	      "**undocumented**")
 static lispval mongodb_simple_command(int n,kno_argvec args)
 {
   lispval arg = args[0], opts = KNO_VOID, command = KNO_VOID, result = KNO_VOID;
@@ -1904,10 +1994,14 @@ static lispval mongodb_simple_command(int n,kno_argvec args)
 /* Cursor creation */
 
 #if HAVE_MONGOC_OPTS_FUNCTIONS
-DEFPRIM3("cursor/open",mongodb_cursor,KNO_MAX_ARGS(3)|KNO_MIN_ARGS(2),
-	 "`(CURSOR/OPEN *arg0* *arg1* [*arg2*])` **undocumented**",
-	 kno_any_type,KNO_VOID,kno_any_type,KNO_VOID,
-	 kno_any_type,KNO_VOID);
+
+KNO_DEFCPRIM("cursor/open",mongodb_cursor,
+	     KNO_MAX_ARGS(3)|KNO_MIN_ARGS(2),
+	     "`(CURSOR/OPEN *arg0* *arg1* [*arg2*])` "
+	     "**undocumented**",
+	     "arg",kno_any_type,KNO_VOID,
+	     "query",kno_any_type,KNO_VOID,
+	     "opts_arg",kno_any_type,KNO_VOID)
 static lispval mongodb_cursor(lispval arg,lispval query,lispval opts_arg)
 {
   struct KNO_MONGODB_COLLECTION *domain = (struct KNO_MONGODB_COLLECTION *)arg;
@@ -1948,10 +2042,14 @@ static lispval mongodb_cursor(lispval arg,lispval query,lispval opts_arg)
     return KNO_ERROR_VALUE;}
 }
 #else
-DEFPRIM3("cursor/open",mongodb_cursor,KNO_MAX_ARGS(3)|KNO_MIN_ARGS(2),
-	 "`(CURSOR/OPEN *arg0* *arg1* [*arg2*])` **undocumented**",
-	 kno_any_type,KNO_VOID,kno_any_type,KNO_VOID,
-	 kno_any_type,KNO_VOID);
+
+KNO_DEFCPRIM("cursor/open",mongodb_cursor,
+	     KNO_MAX_ARGS(3)|KNO_MIN_ARGS(2),
+	     "`(CURSOR/OPEN *arg0* *arg1* [*arg2*])` "
+	     "**undocumented**",
+	     "arg",kno_any_type,KNO_VOID,
+	     "query",kno_any_type,KNO_VOID,
+	     "opts_arg",kno_any_type,KNO_VOID)
 static lispval mongodb_cursor(lispval arg,lispval query,lispval opts_arg)
 {
   struct KNO_MONGODB_COLLECTION *domain = (struct KNO_MONGODB_COLLECTION *)arg;
@@ -2048,8 +2146,12 @@ static int cursor_advance(struct KNO_MONGODB_CURSOR *c,u8_context caller)
     return 0;}
 }
 
-DEFPRIM("cursor/done?",mongodb_donep,KNO_MAX_ARGS(1)|KNO_MIN_ARGS(1),
-	"`(CURSOR/DONE? *arg0*)` **undocumented**");
+
+KNO_DEFCPRIM("cursor/done?",mongodb_donep,
+	     KNO_MAX_ARGS(1)|KNO_MIN_ARGS(1),
+	     "`(CURSOR/DONE? *arg0*)` "
+	     "**undocumented**",
+	     "cursor",kno_any_type,KNO_VOID)
 static lispval mongodb_donep(lispval cursor)
 {
   struct KNO_MONGODB_CURSOR *c = (struct KNO_MONGODB_CURSOR *)cursor;
@@ -2063,8 +2165,13 @@ static lispval mongodb_donep(lispval cursor)
   else return KNO_ERROR;
 }
 
-DEFPRIM("cursor/skip",mongodb_skip,KNO_MAX_ARGS(2)|KNO_MIN_ARGS(1),
-	"`(CURSOR/SKIP *arg0* [*arg1*])` **undocumented**");
+
+KNO_DEFCPRIM("cursor/skip",mongodb_skip,
+	     KNO_MAX_ARGS(2)|KNO_MIN_ARGS(1),
+	     "`(CURSOR/SKIP *arg0* [*arg1*])` "
+	     "**undocumented**",
+	     "cursor",kno_any_type,KNO_VOID,
+	     "howmany",kno_fixnum_type,KNO_INT(1))
 static lispval mongodb_skip(lispval cursor,lispval howmany)
 {
   struct KNO_MONGODB_CURSOR *c = (struct KNO_MONGODB_CURSOR *)cursor;
@@ -2131,17 +2238,27 @@ static lispval mongodb_cursor_reader(lispval cursor,lispval howmany,
     else return kno_init_choice(NULL,i,vec,KNO_CHOICE_DOSORT|KNO_CHOICE_COMPRESS);}
 }
 
-DEFPRIM("cursor/read",mongodb_cursor_read,KNO_MAX_ARGS(3)|KNO_MIN_ARGS(1),
-	"`(CURSOR/READ *arg0* [*arg1*] [*arg2*])` **undocumented**");
+
+KNO_DEFCPRIM("cursor/read",mongodb_cursor_read,
+	     KNO_MAX_ARGS(3)|KNO_MIN_ARGS(1),
+	     "`(CURSOR/READ *arg0* [*arg1*] [*arg2*])` "
+	     "**undocumented**",
+	     "cursor",kno_any_type,KNO_VOID,
+	     "howmany",kno_fixnum_type,KNO_INT(1),
+	     "opts_arg",kno_any_type,KNO_VOID)
 static lispval mongodb_cursor_read(lispval cursor,lispval howmany,
 				   lispval opts_arg)
 {
   return mongodb_cursor_reader(cursor,howmany,opts_arg,-1);
 }
 
-
-DEFPRIM("cursor/readvec",mongodb_cursor_read_vector,KNO_MAX_ARGS(3)|KNO_MIN_ARGS(1),
-	"`(CURSOR/READVEC *arg0* [*arg1*] [*arg2*])` **undocumented**");
+KNO_DEFCPRIM("cursor/readvec",mongodb_cursor_read_vector,
+	     KNO_MAX_ARGS(3)|KNO_MIN_ARGS(1),
+	     "`(CURSOR/READVEC *arg0* [*arg1*] [*arg2*])` "
+	     "**undocumented**",
+	     "cursor",kno_any_type,KNO_VOID,
+	     "howmany",kno_fixnum_type,KNO_INT(1),
+	     "opts_arg",kno_any_type,KNO_VOID)
 static lispval mongodb_cursor_read_vector(lispval cursor,lispval howmany,
 					  lispval opts_arg)
 {
@@ -2938,8 +3055,11 @@ KNO_EXPORT lispval kno_bson2dtype(bson_t *in,int flags,lispval opts)
   else return kno_err(kno_BSON_Input_Error,"kno_bson2dtype",NULL,KNO_VOID);
 }
 
-DEFPRIM("mongovec",mongovec_lexpr,KNO_VAR_ARGS|KNO_MIN_ARGS(0)|KNO_NDOP,
-	"`(MONGOVEC *args...*)` **undocumented**");
+
+KNO_DEFCPRIMN("mongovec",mongovec_lexpr,
+	      KNO_VAR_ARGS|KNO_MIN_ARGS(0)|KNO_NDCALL,
+	      "`(MONGOVEC *args...*)` "
+	      "**undocumented**")
 static lispval mongovec_lexpr(int n,kno_argvec values)
 {
   return kno_init_compound_from_elts
@@ -2948,20 +3068,11 @@ static lispval mongovec_lexpr(int n,kno_argvec values)
      n,(lispval *)values);
 }
 
-DEFPRIM1("->mongovec",make_mongovec,KNO_MAX_ARGS(1)|KNO_MIN_ARGS(1),
-	 "`(->MONGOVEC *arg0*)` **undocumented**",
-	 kno_vector_type,KNO_VOID);
-static lispval make_mongovec(lispval vec)
-{
-  lispval *elts = KNO_VECTOR_ELTS(vec);
-  int n = KNO_VECTOR_LENGTH(vec);
-  return kno_init_compound_from_elts
-    (NULL,mongovec_symbol,KNO_COMPOUND_INCREF|KNO_COMPOUND_SEQUENCE,n,elts);
-}
-
-DEFPRIM1("mongovec?",mongovecp,KNO_MAX_ARGS(1)|KNO_MIN_ARGS(1),
-	 "`(MONGOVEC? *arg0*)` **undocumented**",
-	 kno_any_type,KNO_VOID);
+KNO_DEFCPRIM("mongovec?",mongovecp,
+	     KNO_MAX_ARGS(1)|KNO_MIN_ARGS(1),
+	     "`(MONGOVEC? *arg0*)` "
+	     "**undocumented**",
+	     "arg",kno_any_type,KNO_VOID)
 static lispval mongovecp(lispval arg)
 {
   if (KNO_COMPOUND_TYPEP(arg,mongovec_symbol))
@@ -3072,9 +3183,12 @@ static struct KNO_MONGODB_DATABASE *getdb(lispval arg,u8_context cxt)
     return NULL;}
 }
 
-DEFPRIM1("mongodb/dbname",mongodb_dbname,KNO_MAX_ARGS(1)|KNO_MIN_ARGS(1),
-	 "`(MONGODB/DBNAME *arg0*)` **undocumented**",
-	 kno_any_type,KNO_VOID);
+
+KNO_DEFCPRIM("mongodb/dbname",mongodb_dbname,
+	     KNO_MAX_ARGS(1)|KNO_MIN_ARGS(1),
+	     "`(MONGODB/DBNAME *arg0*)` "
+	     "**undocumented**",
+	     "arg",kno_any_type,KNO_VOID)
 static lispval mongodb_dbname(lispval arg)
 {
   struct KNO_MONGODB_DATABASE *db = getdb(arg,"mongodb_dbname");
@@ -3082,9 +3196,12 @@ static lispval mongodb_dbname(lispval arg)
   else return kno_mkstring(db->dbname);
 }
 
-DEFPRIM1("mongodb/dbspec",mongodb_spec,KNO_MAX_ARGS(1)|KNO_MIN_ARGS(1),
-	 "`(MONGODB/DBSPEC *arg0*)` **undocumented**",
-	 kno_any_type,KNO_VOID);
+
+KNO_DEFCPRIM("mongodb/dbspec",mongodb_spec,
+	     KNO_MAX_ARGS(1)|KNO_MIN_ARGS(1),
+	     "`(MONGODB/DBSPEC *arg0*)` "
+	     "**undocumented**",
+	     "arg",kno_any_type,KNO_VOID)
 static lispval mongodb_spec(lispval arg)
 {
   struct KNO_MONGODB_DATABASE *db = getdb(arg,"mongodb_spec");
@@ -3092,9 +3209,12 @@ static lispval mongodb_spec(lispval arg)
   else return kno_mkstring(db->dbspec);
 }
 
-DEFPRIM1("mongodb/dburi",mongodb_uri,KNO_MAX_ARGS(1)|KNO_MIN_ARGS(1),
-	 "`(MONGODB/DBURI *arg0*)` **undocumented**",
-	 kno_any_type,KNO_VOID);
+
+KNO_DEFCPRIM("mongodb/dburi",mongodb_uri,
+	     KNO_MAX_ARGS(1)|KNO_MIN_ARGS(1),
+	     "`(MONGODB/DBURI *arg0*)` "
+	     "**undocumented**",
+	     "arg",kno_any_type,KNO_VOID)
 static lispval mongodb_uri(lispval arg)
 {
   struct KNO_MONGODB_DATABASE *db = getdb(arg,"mongodb_uri");
@@ -3102,9 +3222,12 @@ static lispval mongodb_uri(lispval arg)
   else return kno_mkstring(db->dburi);
 }
 
-DEFPRIM1("mongodb/getopts",mongodb_getopts,KNO_MAX_ARGS(1)|KNO_MIN_ARGS(1),
-	 "`(MONGODB/GETOPTS *arg0*)` **undocumented**",
-	 kno_any_type,KNO_VOID);
+
+KNO_DEFCPRIM("mongodb/getopts",mongodb_getopts,
+	     KNO_MAX_ARGS(1)|KNO_MIN_ARGS(1),
+	     "`(MONGODB/GETOPTS *arg0*)` "
+	     "**undocumented**",
+	     "arg",kno_any_type,KNO_VOID)
 static lispval mongodb_getopts(lispval arg)
 {
   lispval opts = KNO_VOID;
@@ -3126,9 +3249,12 @@ static lispval mongodb_getopts(lispval arg)
   return opts;
 }
 
-DEFPRIM1("mongodb/getdb",mongodb_getdb,KNO_MAX_ARGS(1)|KNO_MIN_ARGS(1),
-	 "`(MONGODB/GETDB *arg0*)` **undocumented**",
-	 kno_any_type,KNO_VOID);
+
+KNO_DEFCPRIM("mongodb/getdb",mongodb_getdb,
+	     KNO_MAX_ARGS(1)|KNO_MIN_ARGS(1),
+	     "`(MONGODB/GETDB *arg0*)` "
+	     "**undocumented**",
+	     "arg",kno_any_type,KNO_VOID)
 static lispval mongodb_getdb(lispval arg)
 {
   struct KNO_MONGODB_COLLECTION *collection = NULL;
@@ -3146,9 +3272,12 @@ static lispval mongodb_getdb(lispval arg)
   else return KNO_FALSE;
 }
 
-DEFPRIM1("collection/name",mongodb_collection_name,KNO_MAX_ARGS(1)|KNO_MIN_ARGS(1),
-	 "`(COLLECTION/NAME *arg0*)` **undocumented**",
-	 kno_any_type,KNO_VOID);
+
+KNO_DEFCPRIM("collection/name",mongodb_collection_name,
+	     KNO_MAX_ARGS(1)|KNO_MIN_ARGS(1),
+	     "`(COLLECTION/NAME *arg0*)` "
+	     "**undocumented**",
+	     "arg",kno_any_type,KNO_VOID)
 static lispval mongodb_collection_name(lispval arg)
 {
   struct KNO_MONGODB_COLLECTION *collection = NULL;
@@ -3180,9 +3309,12 @@ static int mongodb_getflags(lispval arg)
   else return -1;
 }
 
-DEFPRIM1("mongodb/getcollection",mongodb_getcollection,KNO_MAX_ARGS(1)|KNO_MIN_ARGS(1),
-	 "`(MONGODB/GETCOLLECTION *arg0*)` **undocumented**",
-	 kno_any_type,KNO_VOID);
+
+KNO_DEFCPRIM("mongodb/getcollection",mongodb_getcollection,
+	     KNO_MAX_ARGS(1)|KNO_MIN_ARGS(1),
+	     "`(MONGODB/GETCOLLECTION *arg0*)` "
+	     "**undocumented**",
+	     "arg",kno_any_type,KNO_VOID)
 static lispval mongodb_getcollection(lispval arg)
 {
   if (KNO_TYPEP(arg,kno_mongoc_collection))
@@ -3194,9 +3326,12 @@ static lispval mongodb_getcollection(lispval arg)
   else return kno_type_error("MongoDB collection/cursor","mongodb_dbname",arg);
 }
 
-DEFPRIM1("mongodb?",mongodbp,KNO_MAX_ARGS(1)|KNO_MIN_ARGS(1),
-	 "`(MONGODB? *arg0*)` **undocumented**",
-	 kno_any_type,KNO_VOID);
+
+KNO_DEFCPRIM("mongodb?",mongodbp,
+	     KNO_MAX_ARGS(1)|KNO_MIN_ARGS(1),
+	     "`(MONGODB? *arg0*)` "
+	     "**undocumented**",
+	     "arg",kno_any_type,KNO_VOID)
 static lispval mongodbp(lispval arg)
 {
   if (KNO_TYPEP(arg,kno_mongoc_server))
@@ -3204,9 +3339,12 @@ static lispval mongodbp(lispval arg)
   else return KNO_FALSE;
 }
 
-DEFPRIM1("mongodb/collection?",mongodb_collectionp,KNO_MAX_ARGS(1)|KNO_MIN_ARGS(1),
-	 "`(MONGODB/COLLECTION? *arg0*)` **undocumented**",
-	 kno_any_type,KNO_VOID);
+
+KNO_DEFCPRIM("mongodb/collection?",mongodb_collectionp,
+	     KNO_MAX_ARGS(1)|KNO_MIN_ARGS(1),
+	     "`(MONGODB/COLLECTION? *arg0*)` "
+	     "**undocumented**",
+	     "arg",kno_any_type,KNO_VOID)
 static lispval mongodb_collectionp(lispval arg)
 {
   if (KNO_TYPEP(arg,kno_mongoc_collection))
@@ -3214,9 +3352,12 @@ static lispval mongodb_collectionp(lispval arg)
   else return KNO_FALSE;
 }
 
-DEFPRIM1("mongodb/cursor?",mongodb_cursorp,KNO_MAX_ARGS(1)|KNO_MIN_ARGS(1),
-	 "`(MONGODB/CURSOR? *arg0*)` **undocumented**",
-	 kno_any_type,KNO_VOID);
+
+KNO_DEFCPRIM("mongodb/cursor?",mongodb_cursorp,
+	     KNO_MAX_ARGS(1)|KNO_MIN_ARGS(1),
+	     "`(MONGODB/CURSOR? *arg0*)` "
+	     "**undocumented**",
+	     "arg",kno_any_type,KNO_VOID)
 static lispval mongodb_cursorp(lispval arg)
 {
   if (KNO_TYPEP(arg,kno_mongoc_cursor))
@@ -3234,8 +3375,13 @@ static void add_string(lispval result,lispval field,u8_string value)
     return;}
 }
 
-DEFPRIM("mongodb/dbinfo",mongodb_getinfo,KNO_MAX_ARGS(2)|KNO_MIN_ARGS(1),
-	"`(MONGODB/DBINFO *arg0* [*arg1*])` **undocumented**");
+
+KNO_DEFCPRIM("mongodb/dbinfo",mongodb_getinfo,
+	     KNO_MAX_ARGS(2)|KNO_MIN_ARGS(1),
+	     "`(MONGODB/DBINFO *arg0* [*arg1*])` "
+	     "**undocumented**",
+	     "mongodb",kno_any_type,KNO_VOID,
+	     "field",kno_any_type,KNO_VOID)
 static lispval mongodb_getinfo(lispval mongodb,lispval field)
 {
   lispval result = kno_make_slotmap(10,0,NULL);
@@ -3401,9 +3547,9 @@ KNO_EXPORT int kno_init_mongodb()
 
   mongo_timestamp_tag = kno_intern("mongotime");
 
-  kno_mongoc_server = kno_register_cons_type("MongoDB client");
-  kno_mongoc_collection = kno_register_cons_type("MongoDB collection");
-  kno_mongoc_cursor = kno_register_cons_type("MongoDB cursor");
+  kno_mongoc_server = kno_register_cons_type("mongodb_client");
+  kno_mongoc_collection = kno_register_cons_type("mongodb_collection");
+  kno_mongoc_cursor = kno_register_cons_type("mongodb_cursor");
 
   kno_recyclers[kno_mongoc_server]=recycle_server;
   kno_recyclers[kno_mongoc_collection]=recycle_collection;
@@ -3493,44 +3639,44 @@ KNO_EXPORT int kno_init_mongodb()
 
 static void link_local_cprims()
 {
-  KNO_LINK_PRIM("mongodb/dbinfo",mongodb_getinfo,2,mongodb_module);
-  KNO_LINK_PRIM("mongodb/cursor?",mongodb_cursorp,1,mongodb_module);
-  KNO_LINK_PRIM("mongodb/collection?",mongodb_collectionp,1,mongodb_module);
-  KNO_LINK_PRIM("mongodb?",mongodbp,1,mongodb_module);
-  KNO_LINK_PRIM("mongodb/getcollection",mongodb_getcollection,1,mongodb_module);
-  KNO_LINK_PRIM("collection/name",mongodb_collection_name,1,mongodb_module);
-  KNO_LINK_PRIM("mongodb/getdb",mongodb_getdb,1,mongodb_module);
-  KNO_LINK_PRIM("mongodb/getopts",mongodb_getopts,1,mongodb_module);
-  KNO_LINK_PRIM("mongodb/dburi",mongodb_uri,1,mongodb_module);
-  KNO_LINK_PRIM("mongodb/dbspec",mongodb_spec,1,mongodb_module);
-  KNO_LINK_PRIM("mongodb/dbname",mongodb_dbname,1,mongodb_module);
-  KNO_LINK_PRIM("mongovec?",mongovecp,1,mongodb_module);
-  KNO_LINK_PRIM("->mongovec",make_mongovec,1,mongodb_module);
+  KNO_LINK_CPRIM("mongodb/dbinfo",mongodb_getinfo,2,mongodb_module);
+  KNO_LINK_CPRIM("mongodb/cursor?",mongodb_cursorp,1,mongodb_module);
+  KNO_LINK_CPRIM("mongodb/collection?",mongodb_collectionp,1,mongodb_module);
+  KNO_LINK_CPRIM("mongodb?",mongodbp,1,mongodb_module);
+  KNO_LINK_CPRIM("mongodb/getcollection",mongodb_getcollection,1,mongodb_module);
+  KNO_LINK_CPRIM("collection/name",mongodb_collection_name,1,mongodb_module);
+  KNO_LINK_CPRIM("mongodb/getdb",mongodb_getdb,1,mongodb_module);
+  KNO_LINK_CPRIM("mongodb/getopts",mongodb_getopts,1,mongodb_module);
+  KNO_LINK_CPRIM("mongodb/dburi",mongodb_uri,1,mongodb_module);
+  KNO_LINK_CPRIM("mongodb/dbspec",mongodb_spec,1,mongodb_module);
+  KNO_LINK_CPRIM("mongodb/dbname",mongodb_dbname,1,mongodb_module);
+  KNO_LINK_CPRIM("mongovec?",mongovecp,1,mongodb_module);
+  KNO_LINK_CPRIM("->mongovec",make_mongovec,1,mongodb_module);
   KNO_LINK_VARARGS("mongovec",mongovec_lexpr,mongodb_module);
-  KNO_LINK_PRIM("cursor/readvec",mongodb_cursor_read_vector,3,mongodb_module);
-  KNO_LINK_PRIM("cursor/read",mongodb_cursor_read,3,mongodb_module);
-  KNO_LINK_PRIM("cursor/skip",mongodb_skip,2,mongodb_module);
-  KNO_LINK_PRIM("cursor/done?",mongodb_donep,1,mongodb_module);
-  KNO_LINK_PRIM("cursor/open",mongodb_cursor,3,mongodb_module);
-  KNO_LINK_PRIM("cursor/open",mongodb_cursor,3,mongodb_module);
+  KNO_LINK_CPRIM("cursor/readvec",mongodb_cursor_read_vector,3,mongodb_module);
+  KNO_LINK_CPRIM("cursor/read",mongodb_cursor_read,3,mongodb_module);
+  KNO_LINK_CPRIM("cursor/skip",mongodb_skip,2,mongodb_module);
+  KNO_LINK_CPRIM("cursor/done?",mongodb_donep,1,mongodb_module);
+  KNO_LINK_CPRIM("cursor/open",mongodb_cursor,3,mongodb_module);
+  KNO_LINK_CPRIM("cursor/open",mongodb_cursor,3,mongodb_module);
   KNO_LINK_VARARGS("mongodb/cmd",mongodb_simple_command,mongodb_module);
   KNO_LINK_VARARGS("mongodb/results",mongodb_command,mongodb_module);
-  KNO_LINK_PRIM("->mongovec",make_mongovec,1,mongodb_module);
-  KNO_LINK_PRIM("collection/modify!",mongodb_modify,4,mongodb_module);
-  KNO_LINK_PRIM("collection/get",mongodb_get,3,mongodb_module);
-  KNO_LINK_PRIM("collection/get",mongodb_get,3,mongodb_module);
-  KNO_LINK_PRIM("collection/count",mongodb_count,3,mongodb_module);
-  KNO_LINK_PRIM("collection/count",mongodb_count,3,mongodb_module);
-  KNO_LINK_PRIM("collection/find",mongodb_find,3,mongodb_module);
-  KNO_LINK_PRIM("collection/find",mongodb_find,3,mongodb_module);
-  KNO_LINK_PRIM("collection/upsert!",mongodb_upsert,4,mongodb_module);
-  KNO_LINK_PRIM("collection/update!",mongodb_update,4,mongodb_module);
-  KNO_LINK_PRIM("collection/remove!",mongodb_remove,3,mongodb_module);
-  KNO_LINK_PRIM("collection/insert!",mongodb_insert,3,mongodb_module);
-  KNO_LINK_PRIM("collection/insert!",mongodb_insert,3,mongodb_module);
-  KNO_LINK_PRIM("collection/open",mongodb_collection,3,mongodb_module);
-  KNO_LINK_PRIM("mongodb/open",mongodb_open,2,mongodb_module);
-  KNO_LINK_PRIM("mongodb/oid",mongodb_oidref,1,mongodb_module);
+  KNO_LINK_CPRIM("->mongovec",make_mongovec,1,mongodb_module);
+  KNO_LINK_CPRIM("collection/modify!",mongodb_modify,4,mongodb_module);
+  KNO_LINK_CPRIM("collection/get",mongodb_get,3,mongodb_module);
+  KNO_LINK_CPRIM("collection/get",mongodb_get,3,mongodb_module);
+  KNO_LINK_CPRIM("collection/count",mongodb_count,3,mongodb_module);
+  KNO_LINK_CPRIM("collection/count",mongodb_count,3,mongodb_module);
+  KNO_LINK_CPRIM("collection/find",mongodb_find,3,mongodb_module);
+  KNO_LINK_CPRIM("collection/find",mongodb_find,3,mongodb_module);
+  KNO_LINK_CPRIM("collection/upsert!",mongodb_upsert,4,mongodb_module);
+  KNO_LINK_CPRIM("collection/update!",mongodb_update,4,mongodb_module);
+  KNO_LINK_CPRIM("collection/remove!",mongodb_remove,3,mongodb_module);
+  KNO_LINK_CPRIM("collection/insert!",mongodb_insert,3,mongodb_module);
+  KNO_LINK_CPRIM("collection/insert!",mongodb_insert,3,mongodb_module);
+  KNO_LINK_CPRIM("collection/open",mongodb_collection,3,mongodb_module);
+  KNO_LINK_CPRIM("mongodb/open",mongodb_open,2,mongodb_module);
+  KNO_LINK_CPRIM("mongodb/oid",mongodb_oidref,1,mongodb_module);
 
   KNO_LINK_TYPED("collection/remove!",mongodb_remove,3,mongodb_module,
 		 kno_mongoc_collection,KNO_VOID,kno_any_type,KNO_VOID,
