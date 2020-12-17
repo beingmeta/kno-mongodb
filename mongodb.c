@@ -2151,7 +2151,7 @@ KNO_DEFCPRIM("cursor/done?",mongodb_donep,
 	     KNO_MAX_ARGS(1)|KNO_MIN_ARGS(1),
 	     "`(CURSOR/DONE? *arg0*)` "
 	     "**undocumented**",
-	     {"cursor",kno_any_type,KNO_VOID})
+	     {"cursor",KNO_MONGOC_CURSOR,KNO_VOID})
 static lispval mongodb_donep(lispval cursor)
 {
   struct KNO_MONGODB_CURSOR *c = (struct KNO_MONGODB_CURSOR *)cursor;
@@ -2170,7 +2170,7 @@ KNO_DEFCPRIM("cursor/skip",mongodb_skip,
 	     KNO_MAX_ARGS(2)|KNO_MIN_ARGS(1),
 	     "`(CURSOR/SKIP *arg0* [*arg1*])` "
 	     "**undocumented**",
-	     {"cursor",kno_any_type,KNO_VOID},
+	     {"cursor",KNO_MONGOC_CURSOR,KNO_VOID},
 	     {"howmany",kno_fixnum_type,KNO_INT(1)})
 static lispval mongodb_skip(lispval cursor,lispval howmany)
 {
@@ -2238,12 +2238,11 @@ static lispval mongodb_cursor_reader(lispval cursor,lispval howmany,
     else return kno_init_choice(NULL,i,vec,KNO_CHOICE_DOSORT|KNO_CHOICE_COMPRESS);}
 }
 
-
 KNO_DEFCPRIM("cursor/read",mongodb_cursor_read,
 	     KNO_MAX_ARGS(3)|KNO_MIN_ARGS(1),
 	     "`(CURSOR/READ *arg0* [*arg1*] [*arg2*])` "
 	     "**undocumented**",
-	     {"cursor",kno_any_type,KNO_VOID},
+	     {"cursor",KNO_MONGOC_CURSOR,KNO_VOID},
 	     {"howmany",kno_fixnum_type,KNO_INT(1)},
 	     {"opts_arg",kno_any_type,KNO_VOID})
 static lispval mongodb_cursor_read(lispval cursor,lispval howmany,
@@ -2256,7 +2255,7 @@ KNO_DEFCPRIM("cursor/readvec",mongodb_cursor_read_vector,
 	     KNO_MAX_ARGS(3)|KNO_MIN_ARGS(1),
 	     "`(CURSOR/READVEC *arg0* [*arg1*] [*arg2*])` "
 	     "**undocumented**",
-	     {"cursor",kno_any_type,KNO_VOID},
+	     {"cursor",KNO_MONGOC_CURSOR,KNO_VOID},
 	     {"howmany",kno_fixnum_type,KNO_INT(1)},
 	     {"opts_arg",kno_any_type,KNO_VOID})
 static lispval mongodb_cursor_read_vector(lispval cursor,lispval howmany,
@@ -3681,26 +3680,24 @@ static void link_local_cprims()
   KNO_LINK_CPRIM("mongodb/open",mongodb_open,2,mongodb_module);
   KNO_LINK_CPRIM("mongodb/oid",mongodb_oidref,1,mongodb_module);
 
-  KNO_LINK_TYPED("collection/remove!",mongodb_remove,3,mongodb_module);
-  KNO_LINK_TYPED("collection/update!",mongodb_update,4,mongodb_module);
-  KNO_LINK_TYPED("collection/upsert!",mongodb_upsert,4,mongodb_module);
-  KNO_LINK_TYPED("collection/find",mongodb_find,3,mongodb_module);
-  KNO_LINK_TYPED("collection/find",mongodb_find,3,mongodb_module);
-  KNO_LINK_TYPED("collection/count",mongodb_count,3,mongodb_module);
-  KNO_LINK_TYPED("collection/count",mongodb_count,3,mongodb_module);
-  KNO_LINK_TYPED("collection/get",mongodb_get,3,mongodb_module);
-  KNO_LINK_TYPED("collection/get",mongodb_get,3,mongodb_module);
-  KNO_LINK_TYPED("collection/modify!",mongodb_modify,4,mongodb_module);
+  KNO_LINK_CPRIM("collection/remove!",mongodb_remove,3,mongodb_module);
+  KNO_LINK_CPRIM("collection/update!",mongodb_update,4,mongodb_module);
+  KNO_LINK_CPRIM("collection/upsert!",mongodb_upsert,4,mongodb_module);
+  KNO_LINK_CPRIM("collection/find",mongodb_find,3,mongodb_module);
+  KNO_LINK_CPRIM("collection/find",mongodb_find,3,mongodb_module);
+  KNO_LINK_CPRIM("collection/count",mongodb_count,3,mongodb_module);
+  KNO_LINK_CPRIM("collection/count",mongodb_count,3,mongodb_module);
+  KNO_LINK_CPRIM("collection/get",mongodb_get,3,mongodb_module);
+  KNO_LINK_CPRIM("collection/get",mongodb_get,3,mongodb_module);
+  KNO_LINK_CPRIM("collection/modify!",mongodb_modify,4,mongodb_module);
 
-  KNO_LINK_TYPED("cursor/done?",mongodb_donep,1,mongodb_module);
-  KNO_LINK_TYPED("cursor/skip",mongodb_skip,2,mongodb_module));
+  KNO_LINK_CPRIM("cursor/done?",mongodb_donep,1,mongodb_module);
+  KNO_LINK_CPRIM("cursor/skip",mongodb_skip,2,mongodb_module);
 
 
-  KNO_LINK_TYPED("cursor/read",mongodb_cursor_read,3,mongodb_module),
-		 kno_any_type,KNO_VOID);
-  KNO_LINK_TYPED("cursor/readvec",mongodb_cursor_read_vector,3,mongodb_module),
-		 kno_any_type,KNO_VOID);
-  KNO_LINK_TYPED("mongodb/dbinfo",mongodb_getinfo,2,mongodb_module);
+  KNO_LINK_CPRIM("cursor/read",mongodb_cursor_read,3,mongodb_module);
+  KNO_LINK_CPRIM("cursor/readvec",mongodb_cursor_read_vector,3,mongodb_module);
+  KNO_LINK_CPRIM("mongodb/dbinfo",mongodb_getinfo,2,mongodb_module);
 
   KNO_LINK_ALIAS("mongo/oid",mongodb_oidref,mongodb_module);
   KNO_LINK_ALIAS("mongo/open",mongodb_open,mongodb_module);
