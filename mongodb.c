@@ -46,6 +46,9 @@ kno_lisp_type kno_mongoc_server, kno_mongoc_collection, kno_mongoc_cursor;
 #define KNO_MONGOC_SERVER 0x4655d4f12621070L
 #define KNO_MONGOC_COLLECTION 0x4655d4f12621071L
 #define KNO_MONGOC_CURSOR 0x4655d4f12621072L
+#define kno_mongoc_server_type kno_mongoc_server
+#define kno_mongoc_collection_type kno_mongoc_collection
+#define kno_mongoc_cursor_type kno_mongoc_cursor
 
 #define KNO_FIND_MATCHES  1
 #define KNO_COUNT_MATCHES 0
@@ -3546,12 +3549,9 @@ KNO_EXPORT int kno_init_mongodb()
 
   mongo_timestamp_tag = kno_intern("mongotime");
 
-  kno_mongoc_server = kno_register_cons_type("mongodb_client");
-  kno_add_type_alias(KNO_MONGOC_SERVER,kno_mongoc_server);
-  kno_mongoc_collection = kno_register_cons_type("mongodb_collection");
-  kno_add_type_alias(KNO_MONGOC_COLLECTION,kno_mongoc_collection);
-  kno_mongoc_cursor = kno_register_cons_type("mongodb_cursor");
-  kno_add_type_alias(KNO_MONGOC_CURSOR,kno_mongoc_cursor);
+  kno_mongoc_server = kno_register_cons_type("mongoc_client",KNO_MONGOC_SERVER);
+  kno_mongoc_collection = kno_register_cons_type("mongoc_collection",KNO_MONGOC_COLLECTION);
+  kno_mongoc_cursor = kno_register_cons_type("mongoc_cursor",KNO_MONGOC_CURSOR);
 
   kno_recyclers[kno_mongoc_server]=recycle_server;
   kno_recyclers[kno_mongoc_collection]=recycle_collection;
