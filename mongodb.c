@@ -2567,7 +2567,7 @@ static bool bson_append_keyval(KNO_BSON_OUTPUT b,lispval key,lispval val)
     if (flags&KNO_MONGODB_SLOTIFY) {
       struct KNO_KEYVAL *opmap = kno_sortvec_get
 	(key,mongo_opmap,mongo_opmap_size);
-      if (KNO_EXPECT_FALSE(opmap!=NULL))  {
+      if (KNO_RARELY(opmap!=NULL))  {
 	if (KNO_STRINGP(opmap->kv_val)) {
 	  lispval mapped = opmap->kv_val;
 	  keystring = KNO_CSTRING(mapped);
