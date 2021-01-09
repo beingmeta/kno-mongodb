@@ -2918,8 +2918,8 @@ static void bson_read_step(KNO_BSON_INPUT b,int flags,
 	      fields[index]=kno_get(value,key,KNO_VOID);}}}
 	if (ok) {
 	  n = max+1;
-	  if ((entry)&&(entry->type_parsefn))
-	    compound = entry->type_parsefn(n,fields,entry);
+	  if ((entry)&&(entry->type_consfn))
+	    compound = entry->type_consfn(n,fields,entry);
 	  else {
 	    struct KNO_COMPOUND *c=
 	      u8_malloc(sizeof(struct KNO_COMPOUND)+(n*LISPVAL_LEN));
