@@ -143,7 +143,7 @@ debian: mongodb.c mongodb.h makefile \
 
 debian/changelog: debian mongodb.c mongodb.h makefile
 	cat debian/changelog.base | \
-		u8_debchangelog kno-${PKG_NAME} ${CODENAME} ${REL_BRANCH} ${PATCH_VERSION} \
+		u8_debchangelog kno-${PKG_NAME} ${CODENAME} ${PATCH_VERSION} ${REL_BRANCH} \
 			${REL_STATUS} ${REL_PRIORITY} \
 	    > $@.tmp
 	if test ! -f debian/changelog; then \
