@@ -43,9 +43,9 @@ u8_condition kno_BSON_Compound_Overflow=_("BSON/Kno compound overflow");
 
 /* These are the new cons types introducted for mongodb */
 kno_lisp_type kno_mongoc_server, kno_mongoc_collection, kno_mongoc_cursor;
-#define KNO_MONGOC_SERVER 0x4655d4f12621070L
-#define KNO_MONGOC_COLLECTION 0x4655d4f12621071L
-#define KNO_MONGOC_CURSOR 0x4655d4f12621072L
+#define KNO_MONGOC_SERVER     0xEF5970L
+#define KNO_MONGOC_COLLECTION 0xEF5971L
+#define KNO_MONGOC_CURSOR     0xEF5972L
 #define kno_mongoc_server_type kno_mongoc_server
 #define kno_mongoc_collection_type kno_mongoc_collection
 #define kno_mongoc_cursor_type kno_mongoc_cursor
