@@ -67,8 +67,10 @@ static lispval dbname_symbol, username_symbol, auth_symbol, knotag_symbol;
 static lispval hosts_symbol, connections_symbol, fieldmap_symbol, logopsym;
 static lispval knoparse_symbol, dotcar_symbol, dotcdr_symbol;
 static lispval certfile, certpass, cafilesym, cadirsym, crlsym;
-static lispval symslots_symbol, vecslots_symbol, rawslots_symbol;
+static lispval symslots_symbol, choiceslots_symbol, rawslots_symbol;
 static lispval mongo_timestamp_tag;
+
+static lispval choice_tagstring, choice_tagsym;
 
 /* The mongo_opmap translates symbols for mongodb operators (like
    $addToSet) into the correctly capitalized strings to use in
@@ -85,7 +87,7 @@ static int n_multislots = 0;
 static u8_mutex multislots_lock;
 
 static bool bson_append_keyval(struct KNO_BSON_OUTPUT,lispval,lispval);
-static bool bson_append_dtype(struct KNO_BSON_OUTPUT,const char *,int,
+static bool bson_append_lisp(struct KNO_BSON_OUTPUT,const char *,int,
 			      lispval,int);
 static lispval idsym, maxkey, minkey;
 static lispval oidtag, mongofun, mongouser, mongomd5;
@@ -222,7 +224,7 @@ U8_MAYBE_UNUSED static bson_t *get_projection(lispval opts,int flags)
   else return NULL;
 }
 
-static int grow_dtype_vec(lispval **vecp,size_t n,size_t *vlenp)
+static int grow_lisp_vec(lispval **vecp,size_t n,size_t *vlenp)
 {
   lispval *vec = *vecp; size_t vlen = *vlenp;
   if (n<vlen) return 1;
@@ -243,7 +245,7 @@ static int grow_dtype_vec(lispval **vecp,size_t n,size_t *vlenp)
   return 0;
 }
 
-static void free_dtype_vec(lispval *vec,int n)
+static void free_lisp_vec(lispval *vec,int n)
 {
   if (vec == NULL) return;
   else {
@@ -276,13 +278,28 @@ static int getflags(lispval opts,int dflt)
     return flags;}
   else if (KNO_TABLEP(opts)) {
     lispval flagsv = kno_getopt(opts,bsonflags,KNO_VOID);
-    if (KNO_VOIDP(flagsv)) {
-      if (dflt<0) return KNO_MONGODB_DEFAULTS;
-      else return dflt;}
-    else {
-      int flags = getflags(flagsv,dflt);
-      kno_decref(flagsv);
-      return flags;}}
+    int flags = (!(VOIDP(flagsv))) ? (getflags(flagsv,dflt)) :
+      (dflt<0) ? (KNO_MONGODB_DEFAULTS) : (dflt);
+    if (kno_testopt(opts,raw,KNO_VOID)) flags = 0;
+    if (kno_testopt(opts,slotify,KNO_VOID))
+      flags |= KNO_MONGODB_SLOTIFY;
+    if (kno_testopt(opts,slotifyin,KNO_VOID))
+      flags |= KNO_MONGODB_SLOTIFY_IN;
+    if (kno_testopt(opts,slotifyout,KNO_VOID))
+      flags |= KNO_MONGODB_SLOTIFY_OUT;
+    if (kno_testopt(opts,colonize,KNO_VOID))
+      flags |= KNO_MONGODB_COLONIZE;
+    if (kno_testopt(opts,colonizein,KNO_VOID))
+      flags |= KNO_MONGODB_COLONIZE_IN;
+    if (kno_testopt(opts,colonizeout,KNO_VOID))
+      flags |= KNO_MONGODB_COLONIZE_OUT;
+    if (kno_testopt(opts,choices,KNO_VOID))
+      flags |= KNO_MONGODB_CHOICEVALS;
+    if (kno_testopt(opts,logopsym,KNO_VOID))
+      flags |= KNO_MONGODB_LOGOPS;
+    if (kno_testopt(opts,nochoices,KNO_VOID))
+      flags &= (~KNO_MONGODB_CHOICEVALS);
+    return flags;}
   else if (dflt<0) return KNO_MONGODB_DEFAULTS;
   else return dflt;
 }
@@ -390,16 +407,16 @@ static U8_MAYBE_UNUSED bson_t *get_search_opts(lispval opts,int flags,int for_fi
   out.bson_flags = flags;
   out.bson_fieldmap = kno_getopt(opts,fieldmap_symbol,KNO_VOID);
   if (KNO_FIXNUMP(skip_arg))
-    bson_append_dtype(out,"skip",4,skip_arg,0);
+    bson_append_lisp(out,"skip",4,skip_arg,0);
   else kno_decref(skip_arg);
   if (KNO_FIXNUMP(limit_arg))
-    bson_append_dtype(out,"limit",5,limit_arg,0);
+    bson_append_lisp(out,"limit",5,limit_arg,0);
   else kno_decref(limit_arg);
   if (KNO_FIXNUMP(batch_arg))
-    bson_append_dtype(out,"batchSize",9,batch_arg,0);
+    bson_append_lisp(out,"batchSize",9,batch_arg,0);
   else kno_decref(batch_arg);
   if (KNO_TABLEP(sort_arg))
-    bson_append_dtype(out,"sort",4,sort_arg,0);
+    bson_append_lisp(out,"sort",4,sort_arg,0);
   kno_decref(sort_arg);
   if ( (KNO_SYMBOLP(projection)) || (KNO_CONSP(projection)) ) {
     struct KNO_BSON_OUTPUT fields; bson_t proj;
@@ -438,15 +455,15 @@ static U8_MAYBE_UNUSED bson_t *getbulkopts(lispval opts,int flags)
   out.bson_fieldmap = kno_getopt(opts,fieldmap_symbol,KNO_VOID);
   lispval ordered_arg = kno_getopt(opts,KNOSYM_SORTED,KNO_FALSE);
   if (!(KNO_FALSEP(ordered_arg))) {
-    bson_append_dtype(out,"ordered",4,ordered_arg,0);}
+    bson_append_lisp(out,"ordered",4,ordered_arg,0);}
 
   lispval wcval = kno_getopt(opts,writesym,KNO_VOID);
   lispval wcwait = kno_getopt(opts,wtimeoutsym,KNO_VOID);
 
   if (!(KNO_VOIDP(wcval))) {
-    bson_append_dtype(out,"writeConcern",4,wcval,0);}
+    bson_append_lisp(out,"writeConcern",4,wcval,0);}
   if (!(KNO_VOIDP(wcwait))) {
-    bson_append_dtype(out,"wtimeout",4,wcwait,0);}
+    bson_append_lisp(out,"wtimeout",4,wcwait,0);}
 
   kno_decref(ordered_arg);
   kno_decref(wcval);
@@ -463,7 +480,7 @@ static int mongodb_getflags(lispval mongodb);
    if their value is a choice, it is rendered as an array, but if it's
    a singleton, it's rendered as an array of one value. */
 
-static int get_vecslot(lispval slot)
+static int get_choiceslot(lispval slot)
 {
   int i = 0, n = n_multislots;
   while (i<n)
@@ -473,9 +490,9 @@ static int get_vecslot(lispval slot)
   return -1;
 }
 
-static int add_vecslot(lispval slot)
+static int add_choiceslot(lispval slot)
 {
-  int off = get_vecslot(slot);
+  int off = get_choiceslot(slot);
   if (off>=0) return off;
   else {
     u8_lock_mutex(&multislots_lock);
@@ -515,7 +532,7 @@ static int multislots_config_add(lispval var,lispval val,void *data)
     kno_seterr("Not symbolic","mongodb/multislots_config_add",
 	       NULL,val);
     return -1;}
-  int rv = add_vecslot(sym);
+  int rv = add_choiceslot(sym);
   if (rv < 0) {
     char buf[64];
     kno_seterr("Too many multislots declared","mongodb/multislots_config_add",
@@ -872,6 +889,8 @@ static int setup_tls(mongoc_ssl_opt_t *ssl_opts,
 
 /* Creating collections */
 
+DEF_KNOSYM(oidslot);
+
 /* Collection creation is actually deferred until the collection is
    used because we want the collection to be "thread safe" which means
    that it won't correspond to a single mongoc_collection_t object,
@@ -912,11 +931,21 @@ static lispval mongodb_collection(lispval server,lispval name_arg,
     return kno_err(_("MissingDBName"),"mongodb_open",NULL,server);}
   else {
     collection_name = u8_strdup(name);}
+  lispval oidslot = kno_getopt(opts,KNOSYM(oidslot),KNO_VOID);
+  if (KNO_VOIDP(oidslot)) {}
+  else if (!(KNO_SYMBOLP(oidslot))) {
+    u8_log(LOGERR,"mongodb_collection","Invalid `oidslot` value: %q",oidslot);
+    kno_decref(oidslot);
+    oidslot=KNO_VOID;}
+  else NO_ELSE;
   result = u8_alloc(struct KNO_MONGODB_COLLECTION);
   KNO_INIT_CONS(result,kno_mongoc_collection);
   result->domain_db = server;
   result->domain_opts = opts;
   result->domain_flags = flags;
+  result->domain_oidslot = (KNO_SYMBOLP(oidslot)) ? (oidslot) : (idsym);
+  result->domain_oidkey = (KNO_SYMBOLP(oidslot)) ?
+    (KNO_SYMBOL_NAME(oidslot)) : (U8S("_id"));
   result->collection_name = collection_name;
   return (lispval) result;
 }
@@ -993,14 +1022,14 @@ static void collection_done(mongoc_collection_t *collection,
 
 #if HAVE_MONGOC_BULK_OPERATION_WITH_OPTS
 
-DEFC_PRIM("collection/insert!",mongodb_insert,
+DEFC_PRIM("collection/insert!",collection_insert,
 	  KNO_MAX_ARGS(3)|KNO_MIN_ARGS(2)|KNO_NDCALL,
 	  "(COLLECTION/INSERT! *collection* *objects* *opts*) "
 	  "**undocumented**",
-	  {"arg",kno_any_type,KNO_VOID},
+	  {"collection",kno_any_type,KNO_VOID},
 	  {"objects",kno_any_type,KNO_VOID},
 	  {"opts_arg",kno_any_type,KNO_FALSE})
-static lispval mongodb_insert(lispval arg,lispval objects,lispval opts_arg)
+static lispval collection_insert(lispval arg,lispval objects,lispval opts_arg)
 {
   if (KNO_EMPTY_CHOICEP(arg))
     return KNO_EMPTY_CHOICE;
@@ -1009,13 +1038,18 @@ static lispval mongodb_insert(lispval arg,lispval objects,lispval opts_arg)
   else if (KNO_CHOICEP(arg)) {
     lispval results = KNO_EMPTY;
     KNO_DO_CHOICES(collection,arg) {
-      lispval rv = mongodb_insert(collection,objects,opts_arg);
-      if (KNO_ABORTP(rv)) {
-	kno_decref(results);
-	KNO_STOP_DO_CHOICES;
-	return rv;}
+      if (KNO_TYPEP(collection,kno_mongoc_collection_type)) {
+	lispval rv = collection_insert(collection,objects,opts_arg);
+	if (KNO_ABORTP(rv)) {
+	  kno_decref(results);
+	  KNO_STOP_DO_CHOICES;
+	  return rv;}
+	else {
+	  KNO_ADD_TO_CHOICE(results,rv);}}
       else {
-	KNO_ADD_TO_CHOICE(results,rv);}}
+	kno_type_error(_("MongoDB collection"),"mongodb_insert",collection);
+	kno_decref(results);
+	return KNO_ERROR;}}
     return results;}
   else if (!(KNO_TYPEP(arg,kno_mongoc_collection)))
     return kno_type_error(_("MongoDB collection"),"mongodb_insert",arg);
@@ -1047,7 +1081,7 @@ static lispval mongodb_insert(lispval arg,lispval objects,lispval opts_arg)
       retval = mongoc_bulk_operation_execute(bulk,&reply,&error);
       mongoc_bulk_operation_destroy(bulk);
       if (retval) {
-	result = kno_bson2dtype(&reply,flags,opts);}
+	result = kno_bson2lisp(&reply,flags,opts);}
       else {
 	u8_byte buf[1000];
 	if (errno) u8_graberrno("mongodb_insert",NULL);
@@ -1084,23 +1118,25 @@ static lispval mongodb_insert(lispval arg,lispval objects,lispval opts_arg)
 }
 #else
 
-DEFC_PRIM("collection/insert!",mongodb_insert,
+DEFC_PRIM("collection/insert!",collection_insert,
 	  KNO_MAX_ARGS(3)|KNO_MIN_ARGS(2)|KNO_NDCALL,
 	  "(COLLECTION/INSERT! *collection* *objects* *opts*) "
 	  "**undocumented**",
-	  {"arg",kno_any_type,KNO_VOID},
+	  {"collection",kno_any_type,KNO_VOID},
 	  {"objects",kno_any_type,KNO_VOID},
 	  {"opts_arg",kno_any_type,KNO_FALSE})
-static lispval mongodb_insert(lispval arg,lispval objects,lispval opts_arg)
+static lispval collection_insert(lispval collection,lispval objects,
+				 lispval opts_arg)
 {
-  if (KNO_EMPTY_CHOICEP(arg))
+  if (KNO_EMPTY_CHOICEP(collection))
     return KNO_EMPTY_CHOICE;
   else if (KNO_EMPTY_CHOICEP(objects))
     return KNO_EMPTY_CHOICE;
-  else if (KNO_CHOICEP(arg)) {
+  else if (KNO_CHOICEP(collection)) {
     lispval results = KNO_EMPTY;
-    KNO_DO_CHOICES(collection,arg) {
-      lispval rv = mongodb_insert(collection,objects,opts_arg);
+    KNO_DO_CHOICES(c,collection) {
+      if (KNO_TYPEP(c,kno_mongoc_collection_type)) {
+      lispval rv = mongodb_insert(c,objects,opts_arg);
       if (KNO_ABORTP(rv)) {
 	kno_decref(results);
 	KNO_STOP_DO_CHOICES;
@@ -1108,10 +1144,11 @@ static lispval mongodb_insert(lispval arg,lispval objects,lispval opts_arg)
       else {
 	KNO_ADD_TO_CHOICE(results,rv);}}
     return results;}
-  else if (!(KNO_TYPEP(arg,kno_mongoc_collection)))
+  else if (!(KNO_TYPEP(collection,kno_mongoc_collection)))
     return kno_type_error(_("MongoDB collection"),"mongodb_insert",arg);
   else NO_ELSE;
-  struct KNO_MONGODB_COLLECTION *domain = (struct KNO_MONGODB_COLLECTION *)arg;
+  struct KNO_MONGODB_COLLECTION *domain =
+    (struct KNO_MONGODB_COLLECTION *)collection;
   struct KNO_MONGODB_DATABASE *db =
     (struct KNO_MONGODB_DATABASE *) (domain->domain_db);
   lispval result;
@@ -1137,7 +1174,7 @@ static lispval mongodb_insert(lispval arg,lispval objects,lispval opts_arg)
       retval = mongoc_bulk_operation_execute(bulk,&reply,&error);
       mongoc_bulk_operation_destroy(bulk);
       if (retval) {
-	result = kno_bson2dtype(&reply,flags,opts);}
+	result = kno_bson2lisp(&reply,flags,opts);}
       else {
 	u8_byte buf[1000];
 	if (errno) u8_graberrno("mongodb_insert",NULL);
@@ -1172,21 +1209,23 @@ static lispval mongodb_insert(lispval arg,lispval objects,lispval opts_arg)
 #endif
 
 
-DEFC_PRIM("collection/remove!",mongodb_remove,
+DEFC_PRIM("collection/remove!",collection_remove,
 	  KNO_MAX_ARGS(3)|KNO_MIN_ARGS(2),
 	  "**undocumented**",
-	  {"arg",kno_any_type,KNO_VOID},
+	  {"coll",KNO_MONGOC_COLLECTION,KNO_VOID},
 	  {"obj",kno_any_type,KNO_VOID},
 	  {"opts_arg",kno_any_type,KNO_VOID})
-static lispval mongodb_remove(lispval arg,lispval obj,lispval opts_arg)
+static lispval collection_remove(lispval coll,lispval obj,lispval opts_arg)
 {
   lispval result = KNO_VOID;
-  struct KNO_MONGODB_COLLECTION *domain = (struct KNO_MONGODB_COLLECTION *)arg;
+  struct KNO_MONGODB_COLLECTION *domain=(struct KNO_MONGODB_COLLECTION *)coll;
   struct KNO_MONGODB_DATABASE *db = DOMAIN2DB(domain);
   lispval opts = combine_opts(opts_arg,db->dbopts);
   int flags = getflags(opts_arg,domain->domain_flags), hasid = 1;
   mongoc_client_t *client = NULL;
   mongoc_collection_t *collection = open_collection(domain,&client,flags);
+  u8_string oidkey = domain->domain_oidkey;
+  lispval oidslot = domain->domain_oidslot;
   if (collection) {
     struct KNO_BSON_OUTPUT q; bson_error_t error;
     mongoc_write_concern_t *wc = get_write_concern(opts);
@@ -1194,24 +1233,29 @@ static lispval mongodb_remove(lispval arg,lispval obj,lispval opts_arg)
     q.bson_opts = opts;
     q.bson_flags = flags;
     q.bson_fieldmap = KNO_VOID;
-    if (KNO_OIDP(obj))
-      bson_append_dtype(q,"_id",3,obj,-1);
+    if (KNO_OIDP(obj)) {
+      bson_append_lisp(q,oidkey,3,obj,-1);}
     else if (KNO_TABLEP(obj)) {
-      lispval id = kno_get(obj,idsym,KNO_VOID);
+      lispval id = kno_get(obj,oidslot,KNO_VOID);
       /* If the selector has an _id field, we always want to remove a single
 	 record (there should be only one); otherwise we may remove multiple.
 	 Passing MONGOC_REMOVE_SINGLE_REMOVE allows the search for matches to
 	 stop sooner on the MongoDB side. */
       if (KNO_VOIDP(id)) {
-	q.bson_fieldmap = kno_getopt(opts,fieldmap_symbol,KNO_VOID);
-	kno_bson_output(q,obj);
-	hasid = 0;}
+	id = kno_get(obj,idsym,KNO_VOID);
+	if (KNO_VOIDP(id)) {
+	  q.bson_fieldmap = kno_getopt(opts,fieldmap_symbol,KNO_VOID);
+	  kno_bson_output(q,obj);
+	  hasid = 0;}
+	else {
+	  bson_append_lisp(q,"_id",3,id,-1);
+	  kno_decref(id);}}
       else {
-	bson_append_dtype(q,"_id",3,id,-1);
+	bson_append_lisp(q,oidkey,3,id,-1);
 	kno_decref(id);}}
-    else bson_append_dtype(q,"_id",3,obj,-1);
+    else bson_append_lisp(q,oidkey,3,obj,-1);
     if ((logops)||(flags&KNO_MONGODB_LOGOPS))
-      u8_logf(LOG_NOTICE,"mongodb_remove","Removing %q items from %q",obj,arg);
+      u8_logf(LOG_NOTICE,"mongodb_remove","Removing %q items from %q",obj,coll);
     if (mongoc_collection_remove(collection,
 				 ((hasid)?
 				  (MONGOC_REMOVE_SINGLE_REMOVE):
@@ -1298,45 +1342,45 @@ static lispval mongodb_updater(lispval arg,lispval query,lispval update,
 }
 
 
-DEFC_PRIM("collection/update!",mongodb_update,
+DEFC_PRIM("collection/update!",collection_update,
 	  KNO_MAX_ARGS(4)|KNO_MIN_ARGS(2),
 	  "(COLLECTION/UPDATE! *collection* *object* *opts*) "
 	  "**undocumented**",
-	  {"arg",kno_any_type,KNO_VOID},
+	  {"collection",KNO_MONGOC_COLLECTION,KNO_VOID},
 	  {"query",kno_any_type,KNO_VOID},
 	  {"update",kno_any_type,KNO_VOID},
 	  {"opts_arg",kno_any_type,KNO_VOID})
-static lispval mongodb_update(lispval arg,lispval query,lispval update,
-			      lispval opts_arg)
+static lispval collection_update(lispval arg,lispval query,lispval update,
+				 lispval opts_arg)
 {
   return mongodb_updater(arg,query,update,0,opts_arg);
 }
 
 
 
-DEFC_PRIM("collection/upsert!",mongodb_upsert,
+DEFC_PRIM("collection/upsert!",collection_upsert,
 	  KNO_MAX_ARGS(4)|KNO_MIN_ARGS(2),
 	  "(COLLECTION/UPSERT! *collection* *object* *opts*) "
 	  "**undocumented**",
-	  {"arg",kno_any_type,KNO_VOID},
+	  {"collection",KNO_MONGOC_COLLECTION,KNO_VOID},
 	  {"query",kno_any_type,KNO_VOID},
 	  {"update",kno_any_type,KNO_VOID},
 	  {"opts_arg",kno_any_type,KNO_VOID})
-static lispval mongodb_upsert(lispval arg,lispval query,lispval update,
-			      lispval opts_arg)
+static lispval collection_upsert(lispval collection,lispval query,
+				 lispval update,lispval opts_arg)
 {
-  return mongodb_updater(arg,query,update,(MONGOC_UPDATE_UPSERT),opts_arg);
+  return mongodb_updater(collection,query,update,(MONGOC_UPDATE_UPSERT),opts_arg);
 }
 
 #if HAVE_MONGOC_OPTS_FUNCTIONS
 
-DEFC_PRIM("collection/find",mongodb_find,
+DEFC_PRIM("collection/find",collection_find,
 	  KNO_MAX_ARGS(3)|KNO_MIN_ARGS(2),
 	  "**undocumented**",
-	  {"arg",kno_any_type,KNO_VOID},
+	  {"collection",KNO_MONGOC_COLLECTION,KNO_VOID},
 	  {"query",kno_any_type,KNO_VOID},
 	  {"opts_arg",kno_any_type,KNO_VOID})
-static lispval mongodb_find(lispval arg,lispval query,lispval opts_arg)
+static lispval collection_find(lispval arg,lispval query,lispval opts_arg)
 {
   struct KNO_MONGODB_COLLECTION *domain = (struct KNO_MONGODB_COLLECTION *)arg;
   int flags = getflags(opts_arg,domain->domain_flags);
@@ -1362,17 +1406,17 @@ static lispval mongodb_find(lispval arg,lispval query,lispval opts_arg)
     if (cursor) {
       while (mongoc_cursor_next(cursor,&doc)) {
 	/* u8_string json = bson_as_json(doc,NULL); */
-	lispval r = kno_bson2dtype((bson_t *)doc,flags,opts);
+	lispval r = kno_bson2lisp((bson_t *)doc,flags,opts);
 	if (KNO_ABORTP(r)) {
 	  kno_decref(results);
-	  free_dtype_vec(vec,n);
+	  free_lisp_vec(vec,n);
 	  results = KNO_ERROR_VALUE;
 	  sort_results = 0;
 	  break;}
 	else if (sort_results) {
 	  if (n>=max) {
-	    if (!(grow_dtype_vec(&vec,n,&max))) {
-	      free_dtype_vec(vec,n);
+	    if (!(grow_lisp_vec(&vec,n,&max))) {
+	      free_lisp_vec(vec,n);
 	      results = KNO_ERROR_VALUE;
 	      sort_results = 0;
 	      break;}}
@@ -1383,7 +1427,7 @@ static lispval mongodb_find(lispval arg,lispval query,lispval opts_arg)
       bool trouble = (KNO_ABORTP(results)) ? (1) :
 	(mongoc_cursor_error(cursor,&err));
       if (trouble) {
-	free_dtype_vec(vec,n);
+	free_lisp_vec(vec,n);
 	if (! (KNO_ABORTP(results)) )
 	  grab_mongodb_error(&err,"mongodb_find");
 	mongoc_cursor_destroy(cursor);
@@ -1417,15 +1461,16 @@ static lispval mongodb_find(lispval arg,lispval query,lispval opts_arg)
 }
 #else
 
-DEFC_PRIM("collection/find",mongodb_find,
+DEFC_PRIM("collection/find",collection_find,
 	  KNO_MAX_ARGS(3)|KNO_MIN_ARGS(2),
 	  "**undocumented**",
-	  {"arg",kno_any_type,KNO_VOID},
+	  {"collection",KNO_MONGOC_COLLECTION,KNO_VOID},
 	  {"query",kno_any_type,KNO_VOID},
 	  {"opts_arg",kno_any_type,KNO_VOID})
-static lispval mongodb_find(lispval arg,lispval query,lispval opts_arg)
+static lispval collection_find(lispval collection,lispval query,lispval opts_arg)
 {
-  struct KNO_MONGODB_COLLECTION *domain = (struct KNO_MONGODB_COLLECTION *)arg;
+  struct KNO_MONGODB_COLLECTION *domain =
+    (struct KNO_MONGODB_COLLECTION *)collection;
   int flags = getflags(opts_arg,domain->domain_flags);
   lispval opts = combine_opts(opts_arg,domain->domain_opts);
   mongoc_client_t *client = NULL;
@@ -1459,16 +1504,16 @@ static lispval mongodb_find(lispval arg,lispval query,lispval opts_arg)
       if (cursor) {
 	while (mongoc_cursor_next(cursor,&doc)) {
 	  /* u8_string json = bson_as_json(doc,NULL); */
-	  lispval r = kno_bson2dtype((bson_t *)doc,flags,opts);
+	  lispval r = kno_bson2lisp((bson_t *)doc,flags,opts);
 	  if (KNO_ABORTP(r)) {
 	    kno_decref(results);
-	    free_dtype_vec(vec,n);
+	    free_lisp_vec(vec,n);
 	    results = KNO_ERROR_VALUE;
 	    sort_results = 0;}
 	  else if (sort_results) {
 	    if (n>=max) {
-	      if (!(grow_dtype_vec(&vec,n,&max))) {
-		free_dtype_vec(vec,n);
+	      if (!(grow_lisp_vec(&vec,n,&max))) {
+		free_lisp_vec(vec,n);
 		results = KNO_ERROR_VALUE;
 		sort_results = 0;
 		break;}}
@@ -1502,13 +1547,13 @@ static lispval mongodb_find(lispval arg,lispval query,lispval opts_arg)
 #endif
 
 
-DEFC_PRIM("collection/count",mongodb_count,
+DEFC_PRIM("collection/count",collection_count,
 	  KNO_MAX_ARGS(3)|KNO_MIN_ARGS(2),
 	  "**undocumented**",
-	  {"arg",kno_any_type,KNO_VOID},
+	  {"collection",KNO_MONGOC_COLLECTION,KNO_VOID},
 	  {"query",kno_any_type,KNO_VOID},
 	  {"opts_arg",kno_any_type,KNO_VOID})
-static lispval mongodb_count(lispval arg,lispval query,lispval opts_arg)
+static lispval collection_count(lispval arg,lispval query,lispval opts_arg)
 {
   struct KNO_MONGODB_COLLECTION *domain = (struct KNO_MONGODB_COLLECTION *)arg;
   int flags = getflags(opts_arg,domain->domain_flags);
@@ -1560,13 +1605,13 @@ static lispval mongodb_count(lispval arg,lispval query,lispval opts_arg)
 }
 
 
-DEFC_PRIM("collection/get",mongodb_get,
+DEFC_PRIM("collection/get",collection_get,
 	  KNO_MAX_ARGS(3)|KNO_MIN_ARGS(2),
 	  "**undocumented**",
-	  {"arg",kno_any_type,KNO_VOID},
+	  {"collection",KNO_MONGOC_COLLECTION,KNO_VOID},
 	  {"query",kno_any_type,KNO_VOID},
 	  {"opts_arg",kno_any_type,KNO_VOID})
-static lispval mongodb_get(lispval arg,lispval query,lispval opts_arg)
+static lispval collection_get(lispval arg,lispval query,lispval opts_arg)
 {
   lispval result = KNO_EMPTY_CHOICE;
   struct KNO_MONGODB_COLLECTION *domain = (struct KNO_MONGODB_COLLECTION *)arg;
@@ -1579,25 +1624,32 @@ static lispval mongodb_get(lispval arg,lispval query,lispval opts_arg)
     const bson_t *doc;
     bson_t *q, *findopts = get_search_opts(opts,flags,KNO_FIND_MATCHES);
     mongoc_read_prefs_t *rp = get_read_prefs(opts);
-    if ((!(KNO_OIDP(query)))&&(KNO_TABLEP(query)))
+    if (OIDP(query)) {
+      struct KNO_BSON_OUTPUT out;
+      out.bson_doc = bson_new();
+      out.bson_flags = ((flags<0)?(getflags(opts,KNO_MONGODB_DEFAULTS)):(flags));
+      out.bson_opts = opts;
+      bson_append_lisp(out,domain->domain_oidkey,3,query,-1);
+      q = out.bson_doc;}
+    else if (KNO_TABLEP(query))
       q = kno_lisp2bson(query,flags,opts);
     else {
       struct KNO_BSON_OUTPUT out;
       out.bson_doc = bson_new();
       out.bson_flags = ((flags<0)?(getflags(opts,KNO_MONGODB_DEFAULTS)):(flags));
       out.bson_opts = opts;
-      bson_append_dtype(out,"_id",3,query,-1);
+      bson_append_lisp(out,"_id",3,query,-1);
       q = out.bson_doc;}
     if ((logops)||(flags&KNO_MONGODB_LOGOPS)) {
       unsigned char *qstring = bson_as_json(q,NULL);
-      u8_logf(LOG_NOTICE,"mongodb_get",
+      u8_logf(LOG_NOTICE,"collection_get",
 	      "Matches in %q to \n%Q\n%s",arg,query,qstring);
       bson_free(qstring);}
     if (q)
       cursor = mongoc_collection_find_with_opts(collection,q,findopts,rp);
     else cursor=NULL;
     if ((cursor)&&(mongoc_cursor_next(cursor,&doc))) {
-      result = kno_bson2dtype((bson_t *)doc,flags,opts);}
+      result = kno_bson2lisp((bson_t *)doc,flags,opts);}
     if (cursor) mongoc_cursor_destroy(cursor);
     if (rp) mongoc_read_prefs_destroy(rp);
     if (findopts) bson_destroy(findopts);
@@ -1612,20 +1664,31 @@ static lispval mongodb_get(lispval arg,lispval query,lispval opts_arg)
     return KNO_ERROR_VALUE;}
 }
 
+DEFC_PRIM("collection/oidslot",collection_oidslot,
+	  KNO_MAX_ARGS(1)|KNO_MIN_ARGS(1),
+	  "Returns the OID slot associated with *collection*",
+	  {"collection",KNO_MONGOC_COLLECTION,KNO_VOID})
+static lispval collection_oidslot(lispval arg)
+{
+  struct KNO_MONGODB_COLLECTION *domain = (struct KNO_MONGODB_COLLECTION *)arg;
+  return domain->domain_oidslot;
+}
+
 /* Find and Modify */
 
 static int getnewopt(lispval opts,int dflt);
 
 
-DEFC_PRIM("collection/modify!",mongodb_modify,
+DEFC_PRIM("collection/modify!",collection_modify,
 	  KNO_MAX_ARGS(4)|KNO_MIN_ARGS(3),
 	  "**undocumented**",
-	  {"arg",kno_any_type,KNO_VOID},
+	  {"collection",KNO_MONGOC_COLLECTION,KNO_VOID},
 	  {"query",kno_any_type,KNO_VOID},
 	  {"update",kno_any_type,KNO_VOID},
 	  {"opts_arg",kno_any_type,KNO_VOID})
-static lispval mongodb_modify(lispval arg,lispval query,lispval update,
-			      lispval opts_arg)
+static lispval collection_modify(lispval arg,lispval query,
+				 lispval update,
+				 lispval opts_arg)
 {
   struct KNO_MONGODB_COLLECTION *domain = (struct KNO_MONGODB_COLLECTION *)arg;
   struct KNO_MONGODB_DATABASE *db = DOMAIN2DB(domain);
@@ -1662,7 +1725,7 @@ static lispval mongodb_modify(lispval arg,lispval query,lispval update,
 	 ((KNO_FALSEP(upsert))?(false):(true)),
 	 ((return_new)?(true):(false)),
 	 &reply,&error)) {
-      result = kno_bson2dtype(&reply,flags,opts);}
+      result = kno_bson2lisp(&reply,flags,opts);}
     else {
       u8_byte buf[1000];
       kno_seterr(kno_MongoDB_Error,"mongodb_modify",
@@ -1771,7 +1834,7 @@ static lispval collection_command(lispval arg,lispval command,lispval opts_arg)
 	if (cursor) {
 	  U8_CLEAR_ERRNO();
 	  while ((cursor) && (mongoc_cursor_next(cursor,&doc))) {
-	    lispval r = kno_bson2dtype((bson_t *)doc,flags,opts);
+	    lispval r = kno_bson2lisp((bson_t *)doc,flags,opts);
 	    KNO_ADD_TO_CHOICE(results,r);}
 	  mongoc_cursor_destroy(cursor);}
 	else results=KNO_ERROR_VALUE;}
@@ -1826,7 +1889,7 @@ static lispval db_command(lispval arg,lispval command,
 	if (cursor) {
 	  U8_CLEAR_ERRNO();
 	  while (mongoc_cursor_next(cursor,&doc)) {
-	    lispval r = kno_bson2dtype((bson_t *)doc,flags,opts);
+	    lispval r = kno_bson2lisp((bson_t *)doc,flags,opts);
 	    KNO_ADD_TO_CHOICE(results,r);}
 	  mongoc_cursor_destroy(cursor);}
 	else {
@@ -1899,7 +1962,7 @@ static lispval collection_simple_command(lispval arg,lispval command,
 	bson_free(cmd_string);}
       if (mongoc_collection_command_simple
 	  (collection,cmd,NULL,&response,&error)) {
-	lispval result = kno_bson2dtype(&response,flags,opts);
+	lispval result = kno_bson2lisp(&response,flags,opts);
 	collection_done(collection,client,domain);
 	bson_destroy(cmd);
 	kno_decref(opts);
@@ -1938,7 +2001,7 @@ static lispval db_simple_command(lispval arg,lispval command,
 	bson_free(cmd_string);}
       if (mongoc_client_command_simple
 	  (client,srv->dbname,cmd,NULL,&response,&error)) {
-	lispval result = kno_bson2dtype(&response,flags,opts);
+	lispval result = kno_bson2lisp(&response,flags,opts);
 	client_done(arg,client);
 	bson_destroy(cmd);
 	kno_decref(opts);
@@ -2186,7 +2249,7 @@ static lispval mongodb_cursor_reader(lispval cursor,lispval howmany,
       return kno_make_vector(0,NULL);
     else return KNO_EMPTY_CHOICE;}
   else if ( (n == 1) && (c->cursor_value_bson != NULL) ) {
-    lispval r = kno_bson2dtype((bson_t *)c->cursor_value_bson,flags,opts_arg);
+    lispval r = kno_bson2lisp((bson_t *)c->cursor_value_bson,flags,opts_arg);
     c->cursor_value_bson = NULL;
     if (sorted)
       return kno_make_vector(1,&r);
@@ -2197,11 +2260,11 @@ static lispval mongodb_cursor_reader(lispval cursor,lispval howmany,
     const bson_t *doc;
     lispval opts = combine_opts(opts_arg,c->cursor_opts);
     if (c->cursor_value_bson != NULL) {
-      lispval v = kno_bson2dtype(((bson_t *)c->cursor_value_bson),flags,opts);
+      lispval v = kno_bson2lisp(((bson_t *)c->cursor_value_bson),flags,opts);
       c->cursor_value_bson=NULL;
       vec[i++] = v;}
     while ( (i < n) && (mongoc_cursor_next(scan,&doc)) ) {
-      lispval r = kno_bson2dtype((bson_t *)doc,flags,opts);
+      lispval r = kno_bson2lisp((bson_t *)doc,flags,opts);
       if (!(KNO_VOIDP(opts_arg))) kno_decref(opts);
       if (KNO_ABORTP(r)) {
 	kno_decref_elts(vec,i);
@@ -2252,15 +2315,15 @@ static lispval mongodb_cursor_read_vector(lispval cursor,lispval howmany,
 
 /* BSON output functions */
 
-static bool bson_append_dtype(struct KNO_BSON_OUTPUT b,
-			      const char *key,int keylen,
-			      lispval val,
-			      int flags)
+static bool bson_append_lisp(struct KNO_BSON_OUTPUT b,
+			     const char *key,int keylen,
+			     lispval val,
+			     int flags)
 {
   bool ok = true;
   bson_t *out = b.bson_doc;
   if (flags <= 0) flags = b.bson_flags;
-  if ( ((flags)&(KNO_MONGODB_VECSLOT)) && (!(KNO_CHOICEP(val))) ) {
+  if ( ((flags)&(KNO_MONGODB_CHOICESLOT)) && (!(KNO_CHOICEP(val))) ) {
     struct KNO_BSON_OUTPUT wrapper_out = { 0 };
     bson_t values;
     ok = bson_append_array_begin(out,key,keylen,&values);
@@ -2268,8 +2331,8 @@ static bool bson_append_dtype(struct KNO_BSON_OUTPUT b,
     wrapper_out.bson_flags = b.bson_flags;
     wrapper_out.bson_opts = b.bson_opts;
     wrapper_out.bson_fieldmap = b.bson_fieldmap;
-    if (ok) ok = bson_append_dtype
-	      (wrapper_out,"0",1,val,(flags&(~KNO_MONGODB_VECSLOT)));
+    if (ok) ok = bson_append_lisp
+	      (wrapper_out,"0",1,val,(flags&(~KNO_MONGODB_CHOICESLOT)));
     if (ok) ok = bson_append_document_end(out,&values);
     return ok;}
   else if (KNO_CONSP(val)) {
@@ -2278,7 +2341,7 @@ static bool bson_append_dtype(struct KNO_BSON_OUTPUT b,
     case kno_string_type: {
       unsigned char _buf[64], *buf=_buf;
       u8_string str = KNO_CSTRING(val); int len = KNO_STRLEN(val);
-      if ((flags&KNO_MONGODB_COLONIZE)&&
+      if ((flags&KNO_MONGODB_COLONIZE) &&
 	  ((isdigit(str[0]))||(strchr(":(#@",str[0])!=NULL))) {
 	if (len>62) buf = u8_malloc(len+2);
 	buf[0]='\\'; strncpy(buf+1,str,len); buf[len+1]='\0';
@@ -2321,18 +2384,27 @@ static bool bson_append_dtype(struct KNO_BSON_OUTPUT b,
       ok = bson_append_binary(out,key,keylen,BSON_SUBTYPE_UUID,uuid->uuid16,16);
       break;}
     case kno_choice_type: case kno_prechoice_type: {
-      struct KNO_BSON_OUTPUT rout;
+      int prechoicep = KNO_PRECHOICEP(val);
+      lispval choice = (prechoicep) ? (kno_make_simple_choice(val)) : (val);
+      struct KNO_BSON_OUTPUT inner = { 0 };
       bson_t arr; char buf[16];
       ok = bson_append_array_begin(out,key,keylen,&arr);
-      memset(&rout,0,sizeof(struct KNO_BSON_OUTPUT));
-      rout.bson_doc = &arr; rout.bson_flags = b.bson_flags;
-      rout.bson_opts = b.bson_opts; rout.bson_fieldmap = b.bson_fieldmap;
       if (ok) {
-	int i = 0; KNO_DO_CHOICES(v,val) {
+	inner.bson_doc = &arr; inner.bson_flags = b.bson_flags;
+	inner.bson_opts = b.bson_opts; inner.bson_fieldmap = b.bson_fieldmap;
+	KNO_ITER_CHOICES(scan,limit,choice);
+	int i = 0;
+	if (! ( ( (flags) & (KNO_MONGODB_CHOICESLOT) ) ||
+		( (flags) & (KNO_MONGODB_CHOICEVALS) ) ) ) {
+	  ok = bson_append_lisp(inner,"0",1,choice_tagstring,b.bson_flags);
+	  i++;}
+	while (scan<limit) {
+	  lispval elt = *scan++;
 	  sprintf(buf,"%d",i++);
-	  ok = bson_append_dtype(rout,buf,strlen(buf),v,b.bson_flags);
-	  if (!(ok)) KNO_STOP_DO_CHOICES;}}
-      bson_append_document_end(out,&arr);
+	  ok = bson_append_lisp(inner,buf,strlen(buf),elt,b.bson_flags);
+	  if (!(ok)) break;}
+	bson_append_array_end(out,&arr);}
+      if (prechoicep) kno_decref(choice);
       break;}
     case kno_vector_type: {
       struct KNO_BSON_OUTPUT rout;
@@ -2353,7 +2425,7 @@ static bool bson_append_dtype(struct KNO_BSON_OUTPUT b,
 	rout.bson_opts = b.bson_opts; rout.bson_fieldmap = b.bson_fieldmap;
 	while (i<lim) {
 	  lispval v = data[i]; sprintf(buf,"%d",i++);
-	  ok = bson_append_dtype(rout,buf,strlen(buf),v,-1);
+	  ok = bson_append_lisp(rout,buf,strlen(buf),v,-1);
 	  if (!(ok)) break;}}
       else break;
       if (!(doc_started)) break;
@@ -2398,9 +2470,9 @@ static bool bson_append_dtype(struct KNO_BSON_OUTPUT b,
       if (ok) {
 	rout.bson_doc = &doc; rout.bson_flags = b.bson_flags;
 	rout.bson_opts = b.bson_opts; rout.bson_fieldmap = b.bson_fieldmap;
-	ok = bson_append_dtype(rout,":|>car>|",8,pair->car,-1);
+	ok = bson_append_lisp(rout,":|>car>|",8,pair->car,-1);
 	if (ok) {
-	  ok = bson_append_dtype(rout,":|>cdr>|",8,pair->cdr,-1);
+	  ok = bson_append_lisp(rout,":|>cdr>|",8,pair->cdr,-1);
 	  if (ok) bson_append_document_end(out,&doc);}}
       break;}
     case kno_compound_type: {
@@ -2436,16 +2508,16 @@ static bool bson_append_dtype(struct KNO_BSON_OUTPUT b,
 	lispval *scan = elts, *limit = scan+len; int i = 0;
 	while (scan<limit) {
 	  u8_byte buf[16]; sprintf(buf,"%d",i);
-	  ok = bson_append_dtype(rout,buf,strlen(buf),*scan,-1);
+	  ok = bson_append_lisp(rout,buf,strlen(buf),*scan,-1);
 	  scan++; i++;
 	  if (!(ok)) break;}}
       else {
 	/* Or a tagged object */
 	int i = 0;
-	ok = bson_append_dtype(rout,"%knotag",6,tag,-1);
+	ok = bson_append_lisp(rout,"%knotag",6,tag,-1);
 	if (ok) while (i<len) {
 	    char buf[16]; sprintf(buf,"%d",i);
-	    ok = bson_append_dtype(rout,buf,strlen(buf),elts[i++],-1);
+	    ok = bson_append_lisp(rout,buf,strlen(buf),elts[i++],-1);
 	    if (!(ok)) break;}}
       if (tag == mongovec_symbol)
 	bson_append_array_end(out,&doc);
@@ -2529,7 +2601,7 @@ static bool bson_append_dtype(struct KNO_BSON_OUTPUT b,
 
 static bool bson_append_keyval(KNO_BSON_OUTPUT b,lispval key,lispval val)
 {
-  int flags = b.bson_flags;
+  int flags = b.bson_flags, decref_stored = 0;
   struct U8_OUTPUT keyout; unsigned char buf[1000];
   const char *keystring = NULL; int keylen; bool ok = true;
   lispval fieldmap = b.bson_fieldmap, store_value = val;
@@ -2537,47 +2609,47 @@ static bool bson_append_keyval(KNO_BSON_OUTPUT b,lispval key,lispval val)
     flags = flags | KNO_MONGODB_RAWSLOT;
     flags = flags & (~KNO_MONGODB_CHOICEVALS);
     flags = flags & (~KNO_MONGODB_COLONIZE);
-    flags = flags & (~KNO_MONGODB_VECSLOT);
+    flags = flags & (~KNO_MONGODB_CHOICESLOT);
     flags = flags & (~KNO_MONGODB_SYMSLOT);}
   else {
-    if ( (get_vecslot(key) >= 0) || (kno_testopt(fieldmap,vecslots_symbol,key)) )
-      flags = flags | KNO_MONGODB_VECSLOT;
+    if ( (get_choiceslot(key) >= 0) ||
+	 (kno_testopt(fieldmap,choiceslots_symbol,key)) )
+      flags = flags | KNO_MONGODB_CHOICESLOT;
     if (kno_testopt(fieldmap,symslots_symbol,key))
       flags = flags | KNO_MONGODB_SYMSLOT;}
   U8_INIT_OUTPUT_BUF(&keyout,1000,buf);
   if (KNO_VOIDP(val)) return 0;
-  if (KNO_SYMBOLP(key)) {
+  else if (KNO_SYMBOLP(key)) {
     if (flags&KNO_MONGODB_SLOTIFY) {
-      struct KNO_KEYVAL *opmap = kno_sortvec_get
-	(key,mongo_opmap,mongo_opmap_size);
+      struct KNO_KEYVAL *opmap = kno_sortvec_get(key,mongo_opmap,mongo_opmap_size);
       if (KNO_RARELY(opmap!=NULL))  {
 	if (KNO_STRINGP(opmap->kv_val)) {
 	  lispval mapped = opmap->kv_val;
 	  keystring = KNO_CSTRING(mapped);
 	  keylen = KNO_STRLEN(mapped);}}
-      if (keystring == NULL) {
-	u8_string pname = KNO_SYMBOL_NAME(key);
-	const u8_byte *scan = pname; int c;
-	while ((c = u8_sgetc(&scan))>=0) {
-	  u8_putc(&keyout,u8_tolower(c));}
-	keystring = keyout.u8_outbuf;
-	keylen = keyout.u8_write-keyout.u8_outbuf;}}
+      else {
+	keystring = KNO_SYMBOL_NAME(key);
+	keylen = strlen(keystring);}}
     else {
       keystring = KNO_SYMBOL_NAME(key);
       keylen = strlen(keystring);}
     if (!(KNO_VOIDP(fieldmap))) {
       lispval mapfn = kno_get(fieldmap,key,KNO_VOID);
-      if (KNO_VOIDP(mapfn)) {}
-      else if (KNO_APPLICABLEP(mapfn))
-	store_value = kno_apply(mapfn,1,&val);
-      else if (KNO_TABLEP(mapfn))
-	store_value = kno_get(mapfn,val,KNO_VOID);
-      else if (KNO_TRUEP(mapfn)) {
-	struct U8_OUTPUT out; U8_INIT_OUTPUT(&out,256);
-	out.u8_streaminfo |= U8_STREAM_VERBOSE;
-	kno_unparse(&out,val);
-	store_value = kno_stream2string(&out);}
-      else {}}}
+      if (!(KNO_VOIDP(mapfn))) {
+	decref_stored=1;
+	if (KNO_APPLICABLEP(mapfn))
+	  store_value = kno_apply(mapfn,1,&val);
+	else if (KNO_TABLEP(mapfn))
+	  store_value = kno_get(mapfn,val,KNO_VOID);
+	else if (KNO_TRUEP(mapfn)) {
+	  struct U8_OUTPUT out; U8_INIT_OUTPUT(&out,256);
+	  out.u8_streaminfo |= U8_STREAM_VERBOSE;
+	  kno_unparse(&out,val);
+	  store_value = kno_stream2string(&out);}
+	else decref_stored=0;
+	if (KNO_ABORTED(store_value)) {
+	  u8_close((u8_stream)&keyout);
+	  return 0;}}}}
   else if (KNO_STRINGP(key)) {
     keystring = KNO_CSTRING(key);
     if ((flags&KNO_MONGODB_SLOTIFY)&&
@@ -2607,11 +2679,8 @@ static bool bson_append_keyval(KNO_BSON_OUTPUT b,lispval key,lispval val)
       if (c == '.') *write++ = 0x02;
       else *write++ = c;}
     keystring = newbuf;}
-  if (store_value == val)
-    ok = bson_append_dtype(b,keystring,keylen,val,flags);
-  else {
-    ok = bson_append_dtype(b,keystring,keylen,store_value,flags);
-    kno_decref(store_value);}
+  ok = bson_append_lisp(b,keystring,keylen,store_value,flags);
+  if (decref_stored) kno_decref(store_value);
   u8_close((u8_stream)&keyout);
   return ok;
 }
@@ -2626,12 +2695,12 @@ KNO_EXPORT lispval kno_bson_output(struct KNO_BSON_OUTPUT out,lispval obj)
       lispval elt = elts[i]; u8_byte buf[16];
       sprintf(buf,"%d",i++);
       if (ok)
-	ok = bson_append_dtype(out,buf,strlen(buf),elt,-1);
+	ok = bson_append_lisp(out,buf,strlen(buf),elt,-1);
       else break;}}
   else if (KNO_CHOICEP(obj)) {
     int i = 0; KNO_DO_CHOICES(elt,obj) {
       u8_byte buf[16]; sprintf(buf,"%d",i++);
-      if (ok) ok = bson_append_dtype(out,buf,strlen(buf),elt,-1);
+      if (ok) ok = bson_append_lisp(out,buf,strlen(buf),elt,-1);
       else {
 	KNO_STOP_DO_CHOICES;
 	break;}}}
@@ -2677,15 +2746,15 @@ KNO_EXPORT lispval kno_bson_output(struct KNO_BSON_OUTPUT out,lispval obj)
       lispval *scan = elts, *limit = scan+len; int i = 0;
       while (scan<limit) {
 	u8_byte buf[16]; sprintf(buf,"%d",i);
-	ok = bson_append_dtype(out,buf,strlen(buf),*scan,-1);
+	ok = bson_append_lisp(out,buf,strlen(buf),*scan,-1);
 	i++; scan++;
 	if (!(ok)) break;}}
     else {
       int i = 0;
-      ok = bson_append_dtype(out,"%knotag",6,tag,0);
+      ok = bson_append_lisp(out,"%knotag",6,tag,0);
       if (ok) while (i<len) {
 	  char buf[16]; sprintf(buf,"%d",i);
-	  ok = bson_append_dtype(out,buf,strlen(buf),elts[i++],-1);
+	  ok = bson_append_lisp(out,buf,strlen(buf),elts[i++],-1);
 	  if (!(ok)) break;}}}
   if (!(ok)) {
     kno_seterr("BSONError","kno_bson_output",NULL,obj);
@@ -2739,11 +2808,12 @@ static int slotcode(u8_string s)
 
 static lispval bson_read_vector(KNO_BSON_INPUT b,int flags);
 static lispval bson_read_choice(KNO_BSON_INPUT b,int flags);
+static lispval bson_read_generic(KNO_BSON_INPUT b,int flags);
 
 static void bson_read_step(KNO_BSON_INPUT b,int flags,
 			   lispval into,lispval *loc)
 {
-  int symslot = 0;
+  int symslot = 0, choiceslot = 0, choicevals = 0;
   bson_iter_t *in = b.bson_iter;
   const unsigned char *field = bson_iter_key(in);
   const size_t field_len = strlen(field);
@@ -2775,11 +2845,13 @@ static void bson_read_step(KNO_BSON_INPUT b,int flags,
     flags = flags | KNO_MONGODB_RAWSLOT;
     flags = flags & (~KNO_MONGODB_CHOICEVALS);
     flags = flags & (~KNO_MONGODB_COLONIZE);
-    flags = flags & (~KNO_MONGODB_VECSLOT);
+    flags = flags & (~KNO_MONGODB_CHOICESLOT);
     flags = flags & (~KNO_MONGODB_SYMSLOT);}
   else if ( (KNO_OIDP(slotid)) || (KNO_SYMBOLP(slotid)) ) {
     if (kno_testopt(fieldmap,symslots_symbol,slotid))
-      flags = flags | KNO_MONGODB_SYMSLOT;}
+      flags = flags | KNO_MONGODB_SYMSLOT;
+    if (kno_testopt(fieldmap,choiceslots_symbol,slotid))
+      choiceslot=1;}
   else NO_ELSE;
   switch (bt) {
   case BSON_TYPE_DOUBLE:
@@ -2935,10 +3007,13 @@ static void bson_read_step(KNO_BSON_INPUT b,int flags,
 	kno_decref(tag);}
       else {}}
     else if (BSON_ITER_HOLDS_ARRAY(in)) {
-      int choicevals = (flags&KNO_MONGODB_CHOICEVALS);
-      if ( (choicevals) && (symslot) )
+      if (choiceslot)
 	value = bson_read_choice(b,flags);
-      else value = bson_read_vector(b,flags);}
+      else if (!(symslot))
+	value = bson_read_vector(b,flags);
+      else if (flags&KNO_MONGODB_CHOICEVALS)
+	value = bson_read_choice(b,flags);
+      else value = bson_read_generic(b,flags);}
     else {
       u8_logf(LOG_ERR,kno_BSON_Input_Error,
 	      "Can't handle BSON type %d",bt);
@@ -3022,7 +3097,47 @@ static lispval bson_read_choice(KNO_BSON_INPUT b,int flags)
 	  KNO_CHOICE_FREEDATA|KNO_CHOICE_REALLOC);
 }
 
-KNO_EXPORT lispval kno_bson2dtype(bson_t *in,int flags,lispval opts)
+static lispval bson_read_generic(KNO_BSON_INPUT b,int flags)
+{
+  struct KNO_BSON_INPUT r; bson_iter_t child; int ischoice=0;
+  lispval *data = u8_alloc_n(16,lispval), *write = data, *lim = data+16;
+  if (flags < 0) flags = b.bson_flags;
+  bson_iter_recurse(b.bson_iter,&child);
+  r.bson_iter = &child; r.bson_flags = flags;
+  r.bson_opts = b.bson_opts; r.bson_fieldmap = b.bson_fieldmap;
+  while (bson_iter_next(&child)) {
+    if (write>=lim) {
+      int len = lim-data;
+      int newlen = ((len<16384)?(len*2):(len+16384));
+      lispval *newdata = u8_realloc_n(data,newlen,lispval);
+      if (!(newdata)) u8_raise(kno_MallocFailed,"mongodb_cursor_read_vector",NULL);
+      write = newdata+(write-data); lim = newdata+newlen; data = newdata;}
+    if (BSON_ITER_HOLDS_ARRAY(&child)) {
+      *write++=bson_read_vector(r,flags);}
+    else {
+      bson_read_step(r,flags,KNO_VOID,write);
+      if ( (write == data) && (*write==choice_tagsym) )
+	ischoice=1;
+      else if ( (write == data) && (KNO_STRINGP(*write)) &&
+		(strcmp(KNO_STRDATA(*write),CHOICE_TAGSTRING_TEXT)==0) ) {
+	kno_decref(*write);
+	ischoice=1;}
+      else write++;}}
+  if (ischoice) {
+    if (write == data) {
+      u8_free(data);
+      return KNO_EMPTY_CHOICE;}
+    else return kno_make_choice
+	   (write-data,data,
+	    KNO_CHOICE_DOSORT|KNO_CHOICE_COMPRESS|
+	    KNO_CHOICE_FREEDATA|KNO_CHOICE_REALLOC);}
+  else {
+    lispval result = kno_make_vector(write-data,data);
+    u8_free(data);
+    return result;}
+}
+
+KNO_EXPORT lispval kno_bson2lisp(bson_t *in,int flags,lispval opts)
 {
   bson_iter_t iter;
   if (flags<0) flags = getflags(opts,KNO_MONGODB_DEFAULTS);
@@ -3037,7 +3152,7 @@ KNO_EXPORT lispval kno_bson2dtype(bson_t *in,int flags,lispval opts)
     while (bson_iter_next(&iter)) bson_read_step(b,flags,result,NULL);
     kno_decref(fieldmap);
     return result;}
-  else return kno_err(kno_BSON_Input_Error,"kno_bson2dtype",NULL,KNO_VOID);
+  else return kno_err(kno_BSON_Input_Error,"kno_bson2lisp",NULL,KNO_VOID);
 }
 
 
@@ -3138,6 +3253,8 @@ static void init_mongo_opmap()
   add_to_mongo_opmap("$ne");
   add_to_mongo_opmap("$nin");
   add_to_mongo_opmap("$in");
+
+  add_to_mongo_opmap("$exists");
 
   add_to_mongo_opmap("$maxScan");
   add_to_mongo_opmap("$maxTimeMS");
@@ -3514,14 +3631,20 @@ KNO_EXPORT int kno_init_mongodb()
   poolmaxsym = kno_intern("poolmax");
 
   symslots_symbol = kno_intern("symslots");
-  vecslots_symbol = kno_intern("vecslots");
+  choiceslots_symbol = kno_intern("choiceslots");
   rawslots_symbol = kno_intern("rawslots");
 
   mongo_timestamp_tag = kno_intern("mongotime");
 
-  kno_mongoc_server = kno_register_cons_type("mongoc_client",KNO_MONGOC_SERVER);
-  kno_mongoc_collection = kno_register_cons_type("mongoc_collection",KNO_MONGOC_COLLECTION);
-  kno_mongoc_cursor = kno_register_cons_type("mongoc_cursor",KNO_MONGOC_CURSOR);
+  choice_tagstring = knostring(CHOICE_TAGSTRING_TEXT);
+  choice_tagsym = kno_intern(CHOICE_TAGSTRING_TEXT);
+
+  kno_mongoc_server =
+    kno_register_cons_type("mongoc_client",KNO_MONGOC_SERVER);
+  kno_mongoc_collection =
+    kno_register_cons_type("mongoc_collection",KNO_MONGOC_COLLECTION);
+  kno_mongoc_cursor =
+    kno_register_cons_type("mongoc_cursor",KNO_MONGOC_CURSOR);
 
   kno_recyclers[kno_mongoc_server]=recycle_server;
   kno_recyclers[kno_mongoc_collection]=recycle_collection;
@@ -3572,18 +3695,18 @@ KNO_EXPORT int kno_init_mongodb()
   kno_register_config("MONGODB:MULTISLOTS",
 		      "Which slots should always have vector values",
 		      multislots_config_get,multislots_config_add,NULL);
-  kno_register_config("MONGODB:VECSLOTS",
+  kno_register_config("MONGODB:CHOICESLOTS",
 		      "Alias for MONGODB:MULTISLOTS: Which slots should "
 		      "always have vector values",
 		      multislots_config_get,multislots_config_add,NULL);
 
-  add_vecslot(kno_intern("$each"));
-  add_vecslot(kno_intern("$in"));
-  add_vecslot(kno_intern("$nin"));
-  add_vecslot(kno_intern("$all"));
-  add_vecslot(kno_intern("$and"));
-  add_vecslot(kno_intern("$or"));
-  add_vecslot(kno_intern("$nor"));
+  add_choiceslot(kno_intern("$each"));
+  add_choiceslot(kno_intern("$in"));
+  add_choiceslot(kno_intern("$nin"));
+  add_choiceslot(kno_intern("$all"));
+  add_choiceslot(kno_intern("$and"));
+  add_choiceslot(kno_intern("$or"));
+  add_choiceslot(kno_intern("$nor"));
 
   kno_finish_module(mongodb_module);
 
@@ -3634,32 +3757,18 @@ static void link_local_cprims()
   KNO_LINK_CPRIMN("mongodb/cmd",mongodb_simple_command,mongodb_module);
   KNO_LINK_CPRIMN("mongodb/results",mongodb_command,mongodb_module);
   KNO_LINK_CPRIM("->mongovec",make_mongovec,1,mongodb_module);
-  KNO_LINK_CPRIM("collection/modify!",mongodb_modify,4,mongodb_module);
-  KNO_LINK_CPRIM("collection/get",mongodb_get,3,mongodb_module);
-  KNO_LINK_CPRIM("collection/get",mongodb_get,3,mongodb_module);
-  KNO_LINK_CPRIM("collection/count",mongodb_count,3,mongodb_module);
-  KNO_LINK_CPRIM("collection/count",mongodb_count,3,mongodb_module);
-  KNO_LINK_CPRIM("collection/find",mongodb_find,3,mongodb_module);
-  KNO_LINK_CPRIM("collection/find",mongodb_find,3,mongodb_module);
-  KNO_LINK_CPRIM("collection/upsert!",mongodb_upsert,4,mongodb_module);
-  KNO_LINK_CPRIM("collection/update!",mongodb_update,4,mongodb_module);
-  KNO_LINK_CPRIM("collection/remove!",mongodb_remove,3,mongodb_module);
-  KNO_LINK_CPRIM("collection/insert!",mongodb_insert,3,mongodb_module);
-  KNO_LINK_CPRIM("collection/insert!",mongodb_insert,3,mongodb_module);
+  KNO_LINK_CPRIM("collection/modify!",collection_modify,4,mongodb_module);
+  KNO_LINK_CPRIM("collection/get",collection_get,3,mongodb_module);
+  KNO_LINK_CPRIM("collection/count",collection_count,3,mongodb_module);
+  KNO_LINK_CPRIM("collection/find",collection_find,3,mongodb_module);
+  KNO_LINK_CPRIM("collection/upsert!",collection_upsert,4,mongodb_module);
+  KNO_LINK_CPRIM("collection/update!",collection_update,4,mongodb_module);
+  KNO_LINK_CPRIM("collection/remove!",collection_remove,3,mongodb_module);
+  KNO_LINK_CPRIM("collection/insert!",collection_insert,3,mongodb_module);
   KNO_LINK_CPRIM("collection/open",mongodb_collection,3,mongodb_module);
   KNO_LINK_CPRIM("mongodb/open",mongodb_open,2,mongodb_module);
   KNO_LINK_CPRIM("mongodb/oid",mongodb_oidref,1,mongodb_module);
-
-  KNO_LINK_CPRIM("collection/remove!",mongodb_remove,3,mongodb_module);
-  KNO_LINK_CPRIM("collection/update!",mongodb_update,4,mongodb_module);
-  KNO_LINK_CPRIM("collection/upsert!",mongodb_upsert,4,mongodb_module);
-  KNO_LINK_CPRIM("collection/find",mongodb_find,3,mongodb_module);
-  KNO_LINK_CPRIM("collection/find",mongodb_find,3,mongodb_module);
-  KNO_LINK_CPRIM("collection/count",mongodb_count,3,mongodb_module);
-  KNO_LINK_CPRIM("collection/count",mongodb_count,3,mongodb_module);
-  KNO_LINK_CPRIM("collection/get",mongodb_get,3,mongodb_module);
-  KNO_LINK_CPRIM("collection/get",mongodb_get,3,mongodb_module);
-  KNO_LINK_CPRIM("collection/modify!",mongodb_modify,4,mongodb_module);
+  KNO_LINK_CPRIM("collection/oidslot",collection_oidslot,1,mongodb_module);
 
   KNO_LINK_CPRIM("cursor/done?",mongodb_donep,1,mongodb_module);
   KNO_LINK_CPRIM("cursor/skip",mongodb_skip,2,mongodb_module);
@@ -3673,17 +3782,16 @@ static void link_local_cprims()
   KNO_LINK_ALIAS("mongo/open",mongodb_open,mongodb_module);
   KNO_LINK_ALIAS("mongodb/collection",mongodb_collection,mongodb_module);
   KNO_LINK_ALIAS("mongo/collection",mongodb_collection,mongodb_module);
-  KNO_LINK_ALIAS("mongo/insert!",mongodb_insert,mongodb_module);
-  KNO_LINK_ALIAS("mongo/insert!",mongodb_insert,mongodb_module);
-  KNO_LINK_ALIAS("mongo/remove!",mongodb_remove,mongodb_module);
-  KNO_LINK_ALIAS("mongo/update!",mongodb_update,mongodb_module);
-  KNO_LINK_ALIAS("mongo/find",mongodb_find,mongodb_module);
-  KNO_LINK_ALIAS("mongo/find",mongodb_find,mongodb_module);
-  KNO_LINK_ALIAS("mongo/get",mongodb_get,mongodb_module);
-  KNO_LINK_ALIAS("mongo/get",mongodb_get,mongodb_module);
-  KNO_LINK_ALIAS("collection/modify",mongodb_modify,mongodb_module);
-  KNO_LINK_ALIAS("mongo/modify",mongodb_modify,mongodb_module);
-  KNO_LINK_ALIAS("mongo/modify!",mongodb_modify,mongodb_module);
+  KNO_LINK_ALIAS("mongo/insert!",collection_insert,mongodb_module);
+  KNO_LINK_ALIAS("mongo/insert!",collection_insert,mongodb_module);
+  KNO_LINK_ALIAS("mongo/remove!",collection_remove,mongodb_module);
+  KNO_LINK_ALIAS("mongo/update!",collection_update,mongodb_module);
+  KNO_LINK_ALIAS("mongo/find",collection_find,mongodb_module);
+  KNO_LINK_ALIAS("mongodb/get",collection_get,mongodb_module);
+  KNO_LINK_ALIAS("mongo/get",collection_get,mongodb_module);
+  KNO_LINK_ALIAS("collection/modify",collection_modify,mongodb_module);
+  KNO_LINK_ALIAS("mongo/modify",collection_modify,mongodb_module);
+  KNO_LINK_ALIAS("mongo/modify!",collection_modify,mongodb_module);
   KNO_LINK_ALIAS("mongo/results",mongodb_command,mongodb_module);
   KNO_LINK_ALIAS("mongodb/cursor",mongodb_cursor,mongodb_module);
   KNO_LINK_ALIAS("mongo/cursor",mongodb_cursor,mongodb_module);
