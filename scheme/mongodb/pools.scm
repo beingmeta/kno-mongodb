@@ -31,7 +31,7 @@
 		      #[predicate ismongopool?] 
 		      `(stringfn . mongopool->string))
   collection server dbname cname base capacity 
-  (opts #f) (slotinfo `#[])
+  (opts #f) (slotinfo `#[]) (idslot #f)
   (originals (make-hashtable))
   (lock (make-condvar)))
 
@@ -58,9 +58,12 @@
 
 ;;; Basic methods for mongodb
 
-(define (mongopool-fetch pool mp oid (collection))
+(define (mongopool-fetch pool mp oid (collection) (idslot))
   (default! collection (mongopool-collection mp))
-  (collection/get collection oid #[return #[__index 0]]))
+  (default! idslot (mongopool-idslot mp))
+  (if idslot
+      (collection/get collection oid #[return #[__index 0]])
+      (collection/get collection oid #[return #[__index 0]])))
 
 (define (fetchn collection oidvec)
   (if (= (length oidvec) 1)
