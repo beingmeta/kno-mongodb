@@ -19,21 +19,16 @@
 
 */
 
-#define KNO_MONGODB_SLOTIFY_IN    0x00001
-#define KNO_MONGODB_SLOTIFY_OUT   0x00002
-#define KNO_MONGODB_COLONIZE_IN   0x00004
-#define KNO_MONGODB_COLONIZE_OUT  0x00008
-#define KNO_MONGODB_CHOICEVALS    0x00010
-#define KNO_MONGODB_CHOICESLOT    0x00020
-#define KNO_MONGODB_SYMSLOT       0x00040
-#define KNO_MONGODB_RAWSLOT       0x00080
+#define KNO_MONGODB_SLOTIFY       0x00001
+#define KNO_MONGODB_COLONIZE      0x00002
+#define KNO_MONGODB_PREFCHOICES   0x00004
+#define KNO_MONGODB_CHOICESLOT    0x00008
+#define KNO_MONGODB_SYMSLOT       0x00010
+#define KNO_MONGODB_RAWSLOT       0x00020
 #define KNO_MONGODB_NOBLOCK       0x10000
 #define KNO_MONGODB_LOGOPS	  0x20000
 
-#define KNO_MONGODB_SLOTIFY  (KNO_MONGODB_SLOTIFY_IN  | KNO_MONGODB_SLOTIFY_OUT)
-#define KNO_MONGODB_COLONIZE (KNO_MONGODB_COLONIZE_IN | KNO_MONGODB_COLONIZE_OUT)
 #define KNO_MONGODB_DEFAULTS (KNO_MONGODB_COLONIZE    | KNO_MONGODB_SLOTIFY)
-
 
 #ifndef CHOICE_TAGSTRING_TEXT
 #define CHOICE_TAGSTRING_TEXT "%%ChOiCe%%"
@@ -64,19 +59,22 @@ typedef struct KNO_MONGODB_DATABASE *kno_mongodb_database;
 typedef struct KNO_MONGODB_COLLECTION {
   KNO_CONS_HEADER;
   u8_string collection_name;
-  lispval domain_db;
-  lispval domain_opts;
-  lispval domain_oidslot;
-  u8_string domain_oidkey;
-  int domain_flags;}
+  lispval collection_db;
+  lispval collection_opts;
+  lispval collection_oidslot;
+  u8_string collection_oidkey;
+  int collection_flags;}
   KNO_MONGODB_COLLECTION;
 typedef struct KNO_MONGODB_COLLECTION *kno_mongodb_collection;
 
 typedef struct KNO_MONGODB_CURSOR {
   KNO_CONS_HEADER;
-  lispval cursor_db, cursor_domain, cursor_query;
+  lispval cursor_db, cursor_coll, cursor_query;
   lispval cursor_opts;
   int cursor_flags, cursor_done;
+  ssize_t cursor_skipped;
+  ssize_t cursor_read;
+  long long cursor_threadid;
   mongoc_client_t *cursor_connection;
   mongoc_collection_t *cursor_collection;
   bson_t *cursor_query_bson;
@@ -93,8 +91,9 @@ KNO_EXPORT lispval kno_bson2lisp(bson_t *,int,lispval);
 KNO_EXPORT lispval kno_bson_output(struct KNO_BSON_OUTPUT,lispval);
 KNO_EXPORT int kno_init_mongodb(void);
 
-#define DOMAIN2DB(dom) \
-  ((struct KNO_MONGODB_DATABASE *) ((dom)->domain_db))
-#define CURSOR2DOMAIN(cursor) \
-  (struct KNO_MONGODB_COLLECTION *) ((cursor)->cursor_domain);
-#define CURSOR2COLLECTION(cursor) ((cursor)->cursor_collection)
+#define COLLECTION2DB(dom) \
+  ((struct KNO_MONGODB_DATABASE *) ((dom)->collection_db))
+#define COLL2DB(dom) \
+  ((struct KNO_MONGODB_DATABASE *) ((dom)->collection_db))
+#define CURSOR2COLL(cursor) \
+  ((struct KNO_MONGODB_COLLECTION *) ((cursor)->cursor_coll))

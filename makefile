@@ -206,6 +206,8 @@ dist/alpine.done: dist/alpine.setup
 dist/alpine.installed: dist/alpine.setup
 	( cd staging/alpine; abuild -i -P ${APKREPO} ) && touch dist/alpine.done && touch $@
 
+TAGS: mongodb.c mongodb.h scheme/mongodb/*.scm
+	etags -o $@ $^
 
 alpine: dist/alpine.done
 install-alpine: dist/alpine.done
