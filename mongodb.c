@@ -3388,6 +3388,8 @@ static void bson_read_step(KNO_BSON_INPUT b,int flags,
       value = new_value;
       kno_decref(old_value);}
     else {}}
+  /* For weird bugs */
+  /* if (!(KNO_CHECK_ANY_PTR(value))) kno_raise("BadPtr","bson_read_step",NULL,KNO_VOID); */
   if (!(KNO_VOIDP(into))) kno_store(into,slotid,value);
   if (loc) *loc = value;
   else kno_decref(value);
@@ -3409,7 +3411,8 @@ static lispval bson_read_vector(KNO_BSON_INPUT b,int flags)
       lispval *newdata = u8_realloc_n(data,newlen,lispval);
       if (!(newdata)) u8_raise(kno_MallocFailed,"mongodb_cursor_read_vector",NULL);
       write = newdata+(write-data); lim = newdata+newlen; data = newdata;}
-    bson_read_step(r,flags,KNO_VOID,write); write++;}
+    bson_read_step(r,flags,KNO_VOID,write);
+    write++;}
   result = kno_make_vector(write-data,data);
   u8_free(data);
   return result;
