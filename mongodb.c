@@ -2569,7 +2569,7 @@ static lispval cursor_reader(lispval cursor,lispval howmany,
       int cursor_err = mongoc_cursor_error(scan,&err);
       if (cursor_err) {
 	grab_mongodb_error(&err,"mongodb");
-	kno_decref_vec(vec,i);
+	kno_decref_elts(vec,i);
 	kno_decref(opts);
 	return KNO_ERROR;}
       else c->cursor_done=1;}
