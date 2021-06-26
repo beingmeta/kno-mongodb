@@ -43,7 +43,7 @@ MSG		  = echo
 MACLIBTOOL	  = $(CC) -dynamiclib -single_module -undefined dynamic_lookup \
 			$(LDFLAGS)
 
-GPGID             = FE1BC737F9F323D732AA26330620266BE5AFF294
+GPGID           ::= ${OVERRIDE_GPGID:-FE1BC737F9F323D732AA26330620266BE5AFF294}
 CODENAME	::= $(shell ${KNOCONFIG} codename)
 REL_BRANCH	::= $(shell ${KNOBUILD} getbuildopt REL_BRANCH current)
 REL_STATUS	::= $(shell ${KNOBUILD} getbuildopt REL_STATUS stable)
@@ -51,6 +51,7 @@ REL_PRIORITY	::= $(shell ${KNOBUILD} getbuildopt REL_PRIORITY medium)
 ARCH            ::= $(shell ${KNOBUILD} getbuildopt BUILD_ARCH || uname -m)
 APKREPO         ::= $(shell ${KNOBUILD} getbuildopt APKREPO /srv/repo/kno/apk)
 APK_ARCH_DIR      = ${APKREPO}/staging/${ARCH}
+RPMDIR		  = dist
 
 STATICLIBS=${MONGOCINSTALL}/lib/libbson-static-1.0.a \
 	${MONGOCINSTALL}/lib/libmongoc-static-1.0.a
@@ -101,6 +102,9 @@ mongoc-install/lib/libbson-static-1.0.a mongoc-install/lib/libmongoc-static-1.0.
 staticlibs: ${STATICLIBS}
 mongodb.dylib mongodb.so: staticlibs
 
+scheme/mongodb.zip: scheme/mongodb/*.scm
+	cd scheme; zip mongodb.zip mongodb -x "*~" -x "#*" -x "*.attic/*" -x ".git*"
+
 install: install-cmodule install-scheme
 suinstall doinstall:
 	sudo make install
@@ -113,6 +117,9 @@ install-cmodule: ${CMODULES}
 
 ${INSTALLMODS}/mongodb:
 	${SUDO} ${DIRINSTALL} $@
+
+install-scheme-zip: ${INSTALLMODS}/mongodb.zip
+	${SUDO} ${MODINSTALL} scheme/mongodb/*.scm ${INSTALLMODS}/mongodb
 
 install-scheme: ${INSTALLMODS}/mongodb
 	${SUDO} ${MODINSTALL} scheme/mongodb/*.scm ${INSTALLMODS}/mongodb
@@ -190,11 +197,13 @@ dist/kno-${PKG_NAME}.spec: dist/kno-${PKG_NAME}.spec.in makefile
 		"PKG_NAME" "${PKG_NAME}" && \
 	touch $@
 kno-${PKG_NAME}.tar: dist/kno-${PKG_NAME}.spec ${STATICLIBS}
+	rm -rf $@ kno-${PKG_NAME}-${FULL_VERSION}
 	git archive -o $@ --prefix=kno-${PKG_NAME}-${FULL_VERSION}/ HEAD
 	mkdir kno-${PKG_NAME}-${FULL_VERSION};
 	cp -r mongoc-install kno-${PKG_NAME}-${FULL_VERSION}/mongoc
 	tar -f $@ -r kno-${PKG_NAME}-${FULL_VERSION}
 	tar -f $@ -r dist/kno-${PKG_NAME}.spec
+	rm -rf kno-${PKG_NAME}-${FULL_VERSION}
 
 dist/rpms.ready: kno-${PKG_NAME}.tar
 	rpmbuild $(RPMFLAGS)  			\
@@ -224,6 +233,11 @@ cleanrpms:
 rpmupdate update-rpms freshrpms: cleanrpms
 	make cleanrpms
 	make -s dist/rpms.done
+
+dist/rpms.installed: dist/rpms.done
+	sudo rpm -Uvh ${RPMDIR}/*.rpm && sudo rpm -Uvh ${RPMDIR}/${ARCH}/*.rpm && touch $@
+
+installrpms install-rpms: dist/rpms.installed
 
 # Alpine packaging
 
