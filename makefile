@@ -182,6 +182,49 @@ debinstall: dist/debian.signed
 debclean: clean
 	rm -rf ../kno-${PKG_NAME}-* debian dist/debian.*
 
+# RPM packaging
+
+dist/kno-${PKG_NAME}.spec: dist/kno-${PKG_NAME}.spec.in makefile
+	u8_xsubst dist/kno-${PKG_NAME}.spec dist/kno-${PKG_NAME}.spec.in \
+		"VERSION" "${FULL_VERSION}" \
+		"PKG_NAME" "${PKG_NAME}" && \
+	touch $@
+kno-${PKG_NAME}.tar: dist/kno-${PKG_NAME}.spec ${STATICLIBS}
+	git archive -o $@ --prefix=kno-${PKG_NAME}-${FULL_VERSION}/ HEAD
+	mkdir kno-${PKG_NAME}-${FULL_VERSION};
+	cp -r mongoc-install kno-${PKG_NAME}-${FULL_VERSION}/mongoc
+	tar -f $@ -r kno-${PKG_NAME}-${FULL_VERSION}
+	tar -f $@ -r dist/kno-${PKG_NAME}.spec
+
+dist/rpms.ready: kno-${PKG_NAME}.tar
+	rpmbuild $(RPMFLAGS)  			\
+	   --define="_rpmdir $(RPMDIR)"			\
+	   --define="_srcrpmdir $(RPMDIR)" 		\
+	   --nodeps -ta 				\
+	    kno-${PKG_NAME}.tar && 	\
+	touch dist/rpms.ready
+dist/rpms.done: dist/rpms.ready
+	@if (test "$(GPGID)" = "none" || test "$(GPGID)" = "" ); then 			\
+	    touch dist/rpms.done;				\
+	else 						\
+	     echo "Enter passphrase for '$(GPGID)':"; 		\
+	     rpm --addsign --define="_gpg_name $(GPGID)" 	\
+		--define="__gpg_sign_cmd $(RPMGPG)"		\
+		$(RPMDIR)/kno-${PKG_NAME}-${FULL_VERSION}*.src.rpm 		\
+		$(RPMDIR)/*/kno*-@KNO_VERSION@-*.rpm; 	\
+	fi && touch dist/rpms.done;
+	@ls -l $(RPMDIR)/kno-${PKG_NAME}-${FULL_VERSION}-*.src.rpm \
+		$(RPMDIR)/*/kno*-${FULL_VERSION}-*.rpm;
+
+rpms: dist/rpms.done
+
+cleanrpms:
+	rm -rf dist/rpms.done dist/rpms.ready kno-${PKG_NAME}.tar dist/kno-${PKG_NAME}.spec
+
+rpmupdate update-rpms freshrpms: cleanrpms
+	make cleanrpms
+	make -s dist/rpms.done
+
 # Alpine packaging
 
 staging/alpine:
