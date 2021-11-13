@@ -1,0 +1,14 @@
+#!/bin/sh
+
+TARGET=$1
+TARNAME=$(basename ${TARGET})
+git submodule update;
+git archive -o ${TARGET} HEAD
+cp etc/mod_version BASE_VERSION
+u8_gitversion etc/mod_version > VERSION
+u8_gitversion etc/mod_version -full > FULL_VERSION
+u8_gitbranch > BRANCH
+tar -rf ${TARGET} VERSION BASE_VERSION FULL_VERSION BRANCH
+("cd" mongo-c-driver; git archive --prefix=mongo-c-driver/ -o ../driver.tar HEAD);
+tar --concatenate --file=${TARGET} driver.tar
+rm driver.tar

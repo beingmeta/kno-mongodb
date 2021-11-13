@@ -1,5 +1,5 @@
 #!/bin/sh
-export INSTALLROOT=${INSTALLROOT:-./libzip-install}
+export INSTALLROOT=${INSTALLROOT:-./mongoc-install}
 export PKG_CONFIG_PATH=${INSTALLROOT}/lib/pkgconfig/
 if pkg-config $* 2>&1 > /dev/null; then
     pkg-config $*;
