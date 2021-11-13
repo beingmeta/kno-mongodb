@@ -796,6 +796,7 @@ static mongoc_uri_t *setup_mongoc_uri(mongoc_uri_t *info,lispval opts)
 	       mongoc_uri_get_string(info),KNO_VOID);
     kno_decref(dbarg);
     return NULL;}
+  /* TODO: check version */
 #if HAVE_MONGOC_URI_SET_DATABASE
   else if (!(KNO_STRINGP(dbarg))) {
     kno_seterr("Invalid MongoDBName","setup_mongoc_uri",
@@ -1188,7 +1189,7 @@ mongoc_cursor_t *open_cursor(mongoc_collection_t *collection,
 
 /* Basic operations on collections */
 
-#if HAVE_MONGOC_BULK_OPERATION_WITH_OPTS
+#if HAVE_MONGOC_OPTS_FUNCTIONS
 
 DEFC_PRIM("collection/insert!",collection_insert,
 	  KNO_MAX_ARGS(3)|KNO_MIN_ARGS(2)|KNO_NDCALL,
@@ -1215,12 +1216,12 @@ static lispval collection_insert(lispval arg,lispval objects,lispval opts_arg)
 	else {
 	  KNO_ADD_TO_CHOICE(results,rv);}}
       else {
-	kno_type_error(_("MongoDB collection"),"mongodb_insert",collection);
+	kno_type_error(_("MongoDB collection"),"collection_insert",collection);
 	kno_decref(results);
 	return KNO_ERROR;}}
     return results;}
   else if (!(KNO_TYPEP(arg,kno_mongoc_collection)))
-    return kno_type_error(_("MongoDB collection"),"mongodb_insert",arg);
+    return kno_type_error(_("MongoDB collection"),"collection_insert",arg);
   else NO_ELSE;
   struct KNO_MONGODB_COLLECTION *coll = (struct KNO_MONGODB_COLLECTION *)arg;
   struct KNO_MONGODB_DATABASE *db=
@@ -1235,7 +1236,7 @@ static lispval collection_insert(lispval arg,lispval objects,lispval opts_arg)
     bson_t reply;
     bson_error_t error = { 0 };
     if ((logops)||(flags&KNO_MONGODB_LOGOPS))
-      u8_logf(LOG_NOTICE,"mongodb_insert",
+      u8_logf(LOG_NOTICE,"collection_insert",
 	      "Inserting %d items into %q",KNO_CHOICE_SIZE(objects),arg);
     if (KNO_CHOICEP(objects)) {
       mongoc_bulk_operation_t *bulk=
@@ -1252,8 +1253,8 @@ static lispval collection_insert(lispval arg,lispval objects,lispval opts_arg)
 	result = kno_bson2lisp(&reply,flags,opts);}
       else {
 	u8_byte buf[1000];
-	if (errno) u8_graberrno("mongodb_insert",NULL);
-	kno_seterr(kno_MongoDB_Error,"mongodb_insert",
+	if (errno) u8_graberrno("collection_insert",NULL);
+	kno_seterr(kno_MongoDB_Error,"collection_insert",
 		   u8_sprintf(buf,1000,"%s (%s>%s)",
 			      error.message,db->dburi,coll->collection_name),
 		   kno_incref(objects));
@@ -1272,8 +1273,8 @@ static lispval collection_insert(lispval arg,lispval objects,lispval opts_arg)
       else {
 	u8_byte buf[1000];
 	if (doc) bson_destroy(doc);
-	if (errno) u8_graberrno("mongodb_insert",NULL);
-	kno_seterr(kno_MongoDB_Error,"mongodb_insert",
+	if (errno) u8_graberrno("collection_insert",NULL);
+	kno_seterr(kno_MongoDB_Error,"collection_insert",
 		   u8_sprintf(buf,1000,"%s (%s>%s)",
 			      error.message,db->dburi,coll->collection_name),
 		   kno_incref(objects));
@@ -1305,7 +1306,7 @@ static lispval collection_insert(lispval collection,lispval objects,
     lispval results = KNO_EMPTY;
     KNO_DO_CHOICES(c,collection) {
       if (KNO_TYPEP(c,kno_mongoc_collection_type)) {
-      lispval rv = mongodb_insert(c,objects,opts_arg);
+      lispval rv = collection_insert(c,objects,opts_arg);
       if (KNO_ABORTP(rv)) {
 	kno_decref(results);
 	KNO_STOP_DO_CHOICES;
@@ -1314,7 +1315,7 @@ static lispval collection_insert(lispval collection,lispval objects,
 	KNO_ADD_TO_CHOICE(results,rv);}}
     return results;}
   else if (!(KNO_TYPEP(collection,kno_mongoc_collection)))
-    return kno_type_error(_("MongoDB collection"),"mongodb_insert",arg);
+    return kno_type_error(_("MongoDB collection"),"collection_insert",arg);
   else NO_ELSE;
   struct KNO_MONGODB_COLLECTION *coll =
     (struct KNO_MONGODB_COLLECTION *)collection;
@@ -1330,7 +1331,7 @@ static lispval collection_insert(lispval collection,lispval objects,
     bson_error_t error;
     mongoc_write_concern_t *wc = get_write_concern(opts);
     if ((logops)||(flags&KNO_MONGODB_LOGOPS))
-      u8_logf(LOG_NOTICE,"mongodb_insert",
+      u8_logf(LOG_NOTICE,"collection_insert",
 	      "Inserting %d items into %q",KNO_CHOICE_SIZE(objects),arg);
     if (KNO_CHOICEP(objects)) {
       mongoc_bulk_operation_t *bulk=
@@ -1347,8 +1348,8 @@ static lispval collection_insert(lispval collection,lispval objects,
 	result = kno_bson2lisp(&reply,flags,opts);}
       else {
 	u8_byte buf[1000];
-	if (errno) u8_graberrno("mongodb_insert",NULL);
-	kno_seterr(kno_MongoDB_Error,"mongodb_insert",
+	if (errno) u8_graberrno("collection_insert",NULL);
+	kno_seterr(kno_MongoDB_Error,"collection_insert",
 		   u8_sprintf(buf,1000,"%s (%s>%s)",
 			      error.message,db->dburi,coll->collection_name),
 		   kno_incref(objects));
@@ -1364,8 +1365,8 @@ static lispval collection_insert(lispval collection,lispval objects,
       else {
 	u8_byte buf[1000];
 	if (doc) bson_destroy(doc);
-	if (errno) u8_graberrno("mongodb_insert",NULL);
-	kno_seterr(kno_MongoDB_Error,"mongodb_insert",
+	if (errno) u8_graberrno("collection_insert",NULL);
+	kno_seterr(kno_MongoDB_Error,"collection_insert",
 		   u8_sprintf(buf,1000,"%s (%s>%s)",
 			      error.message,db->dburi,coll->collection_name),
 		   kno_incref(objects));
