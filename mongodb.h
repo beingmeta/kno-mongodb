@@ -1,7 +1,7 @@
 #define MONGOC_ENABLE_SSL 1
 
-#include "bson.h"
-#include "mongoc.h"
+#include <bson.h>
+#include <mongoc.h>
 
 #include <kno/storage.h>
 

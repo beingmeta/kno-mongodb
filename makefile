@@ -15,7 +15,7 @@ INCLUDE		::= $(shell ${KNOCONFIG} include)
 KNO_VERSION	::= $(shell ${KNOCONFIG} version)
 KNO_MAJOR	::= $(shell ${KNOCONFIG} major)
 KNO_MINOR	::= $(shell ${KNOCONFIG} minor)
-PKG_VERSION     ::= $(shell cat ./etc/knomod_version)
+PKG_VERSION     ::= $(shell u8_gitversion ./etc/knomod_version)
 PKG_MAJOR       ::= $(shell cat ./etc/knomod_version | cut -d. -f1)
 FULL_VERSION    ::= ${KNO_MAJOR}.${KNO_MINOR}.${PKG_VERSION}
 PATCHLEVEL      ::= $(shell u8_gitpatchcount ./etc/knomod_version)
@@ -31,7 +31,7 @@ BSON_CFLAGS     ::= $(shell INSTALLROOT=${MONGOCINSTALL} etc/pkc --static --cfla
 BSON_LDFLAGS    ::= $(shell INSTALLROOT=${MONGOCINSTALL} etc/pkc --static --libs libbson-static-1.0)
 MONGODB_CFLAGS  ::= $(shell INSTALLROOT=${MONGOCINSTALL} etc/pkc --static --cflags libmongoc-static-1.0)
 MONGODB_LDFLAGS ::= $(shell INSTALLROOT=${MONGOCINSTALL} etc/pkc --static --libs libmongoc-static-1.0)
-XCFLAGS	  	  = ${INIT_CFLAGS} ${KNO_CFLAGS} ${BSON_CFLAGS} ${MONGODB_CFLAGS}
+XCFLAGS	  	  = ${INIT_CFLAGS} ${MONGODB_CFLAGS} ${KNO_CFLAGS} ${BSON_CFLAGS} ${MONGODB_CFLAGS}
 XLDFLAGS	  = ${INIT_LDFLAGS} ${KNO_LDFLAGS} ${BSON_LDFLAGS} ${MONGODB_LDFLAGS}
 
 MKSO		  = $(CC) -shared $(LDFLAGS) $(LIBS)
@@ -60,20 +60,22 @@ default:
 	@make ${STATICLIBS}
 	@make mongodb.${libsuffix}
 
-mongo-c-driver/CMakeLists.text:
+mongo-c-driver/CMakeLists.txt:
 	@git submodule init
 	@git submodule update
 
-mongoc-build/Makefile: mongo-c-driver/CMakeLists.text
+mongoc-build/Makefile: mongo-c-driver/CMakeLists.txt
 	${USEDIR} mongoc-build
 	cd mongoc-build; cmake -DENABLE_AUTOMATIC_INIT_AND_CLEANUP=OFF \
 	      -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+	      -DBUILD_SHARED_LIBS=off 		\
 	      -DCMAKE_INSTALL_PREFIX=../mongoc-install \
 	      ${CMAKE_FLAGS} \
 	      ../mongo-c-driver
 
 mongodb.o: mongodb.c mongodb.h makefile ${STATICLIBS}
-	@$(CC) $(XCFLAGS) -D_FILEINFO="\"$(shell u8_fileinfo ./$< $(dirname $(pwd))/)\"" -o $@ -c $<
+	@echo XCFLAGS=${XCFLAGS}
+	@$(CC) --save-temps $(XCFLAGS) -D_FILEINFO="\"$(shell u8_fileinfo ./$< $(dirname $(pwd))/)\"" -o $@ -c $<
 	@$(MSG) CC "(MONGODB)" $@
 mongodb.so: mongodb.o mongodb.h makefile
 	@$(MKSO) -o $@ mongodb.o -Wl,-soname=$(@F).${FULL_VERSION} \
