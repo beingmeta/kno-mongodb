@@ -1,3 +1,5 @@
+PKGNAME		  = mongodb
+LIBNAME		  = mongodb
 KNOCONFIG         = knoconfig
 KNOBUILD          = knobuild
 MONGOCINSTALL     = mongoc-install
@@ -21,16 +23,13 @@ FULL_VERSION    ::= ${KNO_MAJOR}.${KNO_MINOR}.${PKG_VERSION}
 PATCHLEVEL      ::= $(shell u8_gitpatchcount ./etc/knomod_version)
 PATCH_VERSION   ::= ${FULL_VERSION}-${PATCHLEVEL}
 
-PKG_NAME	::= mongodb
-DPKG_NAME	::= ${PKG_NAME}_${PATCH_VERSION}
-
 SUDO            ::= $(shell which sudo)
 INIT_CFLAGS     ::= ${CFLAGS}
 INIT_LDFAGS     ::= ${LDFLAGS}
-BSON_CFLAGS     ::= $(shell INSTALLROOT=${MONGOCINSTALL} etc/pkc --static --cflags libbson-static-1.0)
-BSON_LDFLAGS    ::= $(shell INSTALLROOT=${MONGOCINSTALL} etc/pkc --static --libs libbson-static-1.0)
-MONGODB_CFLAGS  ::= $(shell INSTALLROOT=${MONGOCINSTALL} etc/pkc --static --cflags libmongoc-static-1.0)
-MONGODB_LDFLAGS ::= $(shell INSTALLROOT=${MONGOCINSTALL} etc/pkc --static --libs libmongoc-static-1.0)
+BSON_CFLAGS     ::= $(shell INSTALLROOT=mongoc-install etc/pkc --static --cflags libbson-static-1.0)
+BSON_LDFLAGS    ::= $(shell INSTALLROOT=mongoc-install etc/pkc --static --libs libbson-static-1.0)
+MONGODB_CFLAGS  ::= $(shell INSTALLROOT=mongoc-install etc/pkc --static --cflags libmongoc-static-1.0)
+MONGODB_LDFLAGS ::= $(shell INSTALLROOT=mongoc-install etc/pkc --static --libs libmongoc-static-1.0)
 XCFLAGS	  	  = ${INIT_CFLAGS} ${MONGODB_CFLAGS} ${KNO_CFLAGS} ${BSON_CFLAGS} ${MONGODB_CFLAGS}
 XLDFLAGS	  = ${INIT_LDFLAGS} ${KNO_LDFLAGS} ${BSON_LDFLAGS} ${MONGODB_LDFLAGS}
 
@@ -53,8 +52,8 @@ APKREPO         ::= $(shell ${KNOBUILD} getbuildopt APKREPO /srv/repo/kno/apk)
 APK_ARCH_DIR      = ${APKREPO}/staging/${ARCH}
 RPMDIR		  = dist
 
-STATICLIBS=${MONGOCINSTALL}/lib/libbson-static-1.0.a \
-	${MONGOCINSTALL}/lib/libmongoc-static-1.0.a
+STATICLIBS=mongoc-install/lib/libbson-static-1.0.a \
+	mongoc-install/lib/libmongoc-static-1.0.a
 
 default:
 	@make ${STATICLIBS}
@@ -115,7 +114,7 @@ ${CMODULES}:
 	@${DIRINSTALL} ${CMODULES}
 
 install-cmodule: ${CMODULES}
-	${SUDO} u8_install_shared ${PKG_NAME}.${libsuffix} ${CMODULES} ${FULL_VERSION} "${SYSINSTALL}"
+	${SUDO} u8_install_shared ${LIBNAME}.${libsuffix} ${CMODULES} ${FULL_VERSION} "${SYSINSTALL}"
 
 ${INSTALLMODS}/mongodb:
 	${SUDO} ${DIRINSTALL} $@
@@ -138,108 +137,6 @@ deep-fresh: deep-clean
 
 gitup gitup-trunk:
 	git checkout trunk && git pull
-
-# Debian packaging
-
-DEBFILES=changelog.base control.base compat copyright dirs docs install
-
-debian: dist/debian/compat dist/debian/control.base dist/debian/changelog.base
-	rm -rf debian
-	cp -r dist/debian debian
-	cd debian; chmod a-x ${DEBFILES}
-
-debian/compat: dist/debian/compat
-	rm -rf debian
-	cp -r dist/debian debian
-
-debian/changelog: debian/compat dist/debian/changelog.base
-	cat dist/debian/changelog.base | \
-		u8_debchangelog kno-${PKG_NAME} ${CODENAME} ${PATCH_VERSION} \
-			${REL_BRANCH} ${REL_STATUS} ${REL_PRIORITY} \
-	    > $@.tmp
-	if test ! -f debian/changelog; then \
-	  mv debian/changelog.tmp debian/changelog; \
-	elif diff debian/changelog debian/changelog.tmp 2>&1 > /dev/null; then \
-	  mv debian/changelog.tmp debian/changelog; \
-	else rm debian/changelog.tmp; fi
-debian/control: debian/compat dist/debian/control.base
-	u8_xsubst debian/control dist/debian/control.base "KNO_MAJOR" "${KNO_MAJOR}"
-
-dist/debian.built: makefile debian/changelog debian/control
-	dpkg-buildpackage -sa -us -uc -b -rfakeroot && \
-	touch $@
-
-dist/debian.signed: dist/debian.built
-	@if test "${GPGID}" = "none" || test -z "${GPGID}"; then  	\
-	  echo "Skipping debian signing";				\
-	  touch $@;							\
-	else 								\
-	  echo debsign --re-sign -k${GPGID} ../kno-${PKG_NAME}_*.changes;	\
-	  debsign --re-sign -k${GPGID} ../kno-${PKG_NAME}_*.changes && 	\
-	  touch $@;							\
-	fi;
-
-deb debs dpkg dpkgs: dist/debian.signed
-
-debfresh: clean debclean
-	rm -rf debian
-	make dist/debian.signed
-
-debinstall: dist/debian.signed
-	${SUDO} dpkg -i ../kno-${PKG_NAME}_*.deb
-
-debclean: clean
-	rm -rf ../kno-${PKG_NAME}-* debian dist/debian.*
-
-# RPM packaging
-
-dist/kno-${PKG_NAME}.spec: dist/kno-${PKG_NAME}.spec.in makefile
-	u8_xsubst dist/kno-${PKG_NAME}.spec dist/kno-${PKG_NAME}.spec.in \
-		"VERSION" "${FULL_VERSION}" \
-		"PKG_NAME" "${PKG_NAME}" && \
-	touch $@
-kno-${PKG_NAME}.tar: dist/kno-${PKG_NAME}.spec ${STATICLIBS}
-	rm -rf $@ kno-${PKG_NAME}-${FULL_VERSION}
-	git archive -o $@ --prefix=kno-${PKG_NAME}-${FULL_VERSION}/ HEAD
-	mkdir kno-${PKG_NAME}-${FULL_VERSION};
-	cp -r mongoc-install kno-${PKG_NAME}-${FULL_VERSION}/mongoc
-	tar -f $@ -r kno-${PKG_NAME}-${FULL_VERSION}
-	tar -f $@ -r dist/kno-${PKG_NAME}.spec
-	rm -rf kno-${PKG_NAME}-${FULL_VERSION}
-
-dist/rpms.ready: kno-${PKG_NAME}.tar
-	rpmbuild $(RPMFLAGS)  			\
-	   --define="_rpmdir $(RPMDIR)"			\
-	   --define="_srcrpmdir $(RPMDIR)" 		\
-	   --nodeps -ta 				\
-	    kno-${PKG_NAME}.tar && 	\
-	touch dist/rpms.ready
-dist/rpms.done: dist/rpms.ready
-	@if (test "$(GPGID)" = "none" || test "$(GPGID)" = "" ); then 			\
-	    touch dist/rpms.done;				\
-	else 						\
-	     echo "Enter passphrase for '$(GPGID)':"; 		\
-	     rpm --addsign --define="_gpg_name $(GPGID)" 	\
-		--define="__gpg_sign_cmd $(RPMGPG)"		\
-		$(RPMDIR)/kno-${PKG_NAME}-${FULL_VERSION}*.src.rpm 		\
-		$(RPMDIR)/*/kno*-@KNO_VERSION@-*.rpm; 	\
-	fi && touch dist/rpms.done;
-	@ls -l $(RPMDIR)/kno-${PKG_NAME}-${FULL_VERSION}-*.src.rpm \
-		$(RPMDIR)/*/kno*-${FULL_VERSION}-*.rpm;
-
-rpms: dist/rpms.done
-
-cleanrpms:
-	rm -rf dist/rpms.done dist/rpms.ready kno-${PKG_NAME}.tar dist/kno-${PKG_NAME}.spec
-
-rpmupdate update-rpms freshrpms: cleanrpms
-	make cleanrpms
-	make -s dist/rpms.done
-
-dist/rpms.installed: dist/rpms.done
-	sudo rpm -Uvh ${RPMDIR}/*.rpm && sudo rpm -Uvh ${RPMDIR}/${ARCH}/*.rpm && touch $@
-
-installrpms install-rpms: dist/rpms.installed
 
 # Alpine packaging
 
