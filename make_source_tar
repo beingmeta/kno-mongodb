@@ -1,5 +1,4 @@
 #!/bin/sh
-
 TARGET=$1
 TARNAME=$(basename ${TARGET})
 git submodule update;
