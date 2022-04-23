@@ -1006,7 +1006,9 @@ static u8_string get_connection_spec(mongoc_uri_t *info)
   u8_string server_name = "unknown";
   if (hosts) server_name = hosts->host_and_port;
   else {
-#if MONGOC_CHECK_VERSION(1,9,0)
+#if MONGOC_CHECK_VERSION(1,11,0) /* Lower? */
+    server_name = mongoc_uri_get_srv_hostname(info);
+#elif MONGOC_CHECK_VERSION(1,9,0)
     server_name = mongoc_uri_get_service(info);
 #endif
   }
