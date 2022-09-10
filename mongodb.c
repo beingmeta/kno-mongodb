@@ -1194,7 +1194,7 @@ mongoc_cursor_t *open_cursor(mongoc_collection_t *collection,
 #if HAVE_MONGOC_OPTS_FUNCTIONS
 
 DEFC_PRIM("collection/insert!",collection_insert,
-	  KNO_MAX_ARGS(3)|KNO_MIN_ARGS(2)|KNO_NDCALL,
+	  KNO_MAX_ARGS(3)|KNO_MIN_ARGS(2)|KNO_AGGREGATE,
 	  "(COLLECTION/INSERT! *collection* *objects* *opts*) "
 	  "**undocumented**",
 	  {"collection",kno_any_type,KNO_VOID},
@@ -1291,7 +1291,7 @@ static lispval collection_insert(lispval arg,lispval objects,lispval opts_arg)
 #else
 
 DEFC_PRIM("collection/insert!",collection_insert,
-	  KNO_MAX_ARGS(3)|KNO_MIN_ARGS(2)|KNO_NDCALL,
+	  KNO_MAX_ARGS(3)|KNO_MIN_ARGS(2)|KNO_AGGREGATE,
 	  "(COLLECTION/INSERT! *collection* *objects* *opts*) "
 	  "**undocumented**",
 	  {"collection",kno_any_type,KNO_VOID},
@@ -3510,7 +3510,7 @@ KNO_EXPORT lispval kno_bson2lisp(bson_t *in,int flags,lispval opts)
 
 
 DEFC_PRIMN("mongovec",mongovec_lexpr,
-	   KNO_VAR_ARGS|KNO_MIN_ARGS(0)|KNO_NDCALL,
+	   KNO_VAR_ARGS|KNO_MIN_ARGS(0)|KNO_AGGREGATE,
 	   "**undocumented**")
 static lispval mongovec_lexpr(int n,kno_argvec values)
 {
