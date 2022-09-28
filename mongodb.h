@@ -97,3 +97,11 @@ KNO_EXPORT int kno_init_mongodb(void);
   ((struct KNO_MONGODB_DATABASE *) ((dom)->collection_db))
 #define CURSOR2COLL(cursor) \
   ((struct KNO_MONGODB_COLLECTION *) ((cursor)->cursor_coll))
+
+/* Compatability stuff */
+
+#ifndef KNO_AGGREGATE
+#ifdef KNO_NDCALL
+#define KNO_AGGREGATE KNO_NDCALL
+#endif
+#endif
